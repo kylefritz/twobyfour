@@ -39,6 +39,11 @@ struct TwoByFourApp: App {
             }
             .frame(minWidth: 560, minHeight: 360)
             .sheet(isPresented: $state.tryingBuild) { TryBuildView(controller: delegate.updates) }
+            .sheet(isPresented: $state.sendingLogs) {
+                SendLogsView(report: { state.debugReport(updates: delegate.updates) },
+                             build: LogSender.Build(version: delegate.updates.version, commit: delegate.updates.commit,
+                                                    channel: UpdateChannel.current().rawValue))
+            }
         }
         .defaultSize(width: 820, height: 560)
 
@@ -53,6 +58,7 @@ struct TwoByFourApp: App {
                 Button("Try a Build…") { state.tryingBuild = true }
             }
             CommandGroup(replacing: .help) {
+                Button("Send Logs…") { state.sendingLogs = true }
                 Button("Copy Debug Report") { state.copyDebugReport(updates: delegate.updates) }
                 Button("Show Log in Finder") {
                     NSWorkspace.shared.activateFileViewerSelecting([AppInfo.logFile])
@@ -68,6 +74,7 @@ final class AppState: ObservableObject {
     let store = SheetStore(directory: SheetStore.defaultDirectory)
     @Published var selection: UUID?
     @Published var tryingBuild = false
+    @Published var sendingLogs = false
 
     init() {
         if store.sheets.isEmpty { store.create(name: "Scratch") }
@@ -82,12 +89,15 @@ final class AppState: ObservableObject {
     /// Puts the build, the open sheet with its answers and the end of the
     /// log on the clipboard, ready to paste into a chat or an issue.
     func copyDebugReport(updates: UpdateController) {
-        let sheet = store.sheets.first { $0.id == selection }
         Log.shared.write("copied a debug report")
-        let report = Diagnostics.report(version: updates.version, commit: updates.commit, preview: updates.preview,
-                                        sheet: sheet, log: Log.shared.tail(300))
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(report, forType: .string)
+        NSPasteboard.general.setString(debugReport(updates: updates), forType: .string)
+    }
+
+    /// The build, the open sheet with its answers, and the end of the log.
+    func debugReport(updates: UpdateController) -> String {
+        Diagnostics.report(version: updates.version, commit: updates.commit, preview: updates.preview,
+                           sheet: store.sheets.first { $0.id == selection }, log: Log.shared.tail(300))
     }
 }
 
