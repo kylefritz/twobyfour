@@ -32,17 +32,25 @@ struct TwoByFourApp: App {
 
     var body: some Scene {
         Window("twoByFour", id: "main") {
-            ContentView(state: state)
-                .frame(minWidth: 560, minHeight: 360)
+            VStack(spacing: 0) {
+                ContentView(state: state)
+                UpdateBanner(updater: delegate.updates.updater) { delegate.updates.restartToUpdate() }
+                VersionFooter(controller: delegate.updates)
+            }
+            .frame(minWidth: 560, minHeight: 360)
+            .sheet(isPresented: $state.tryingBuild) { TryBuildView(controller: delegate.updates) }
         }
         .defaultSize(width: 820, height: 560)
+
+        Settings { SettingsView() }
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Sheet") { state.newSheet() }
                     .keyboardShortcut("n")
             }
             CommandGroup(after: .appInfo) {
-                Text("Bring to Front: \(HotKey.defaultLabel)")
+                Button("Check for Updates…") { Task { await delegate.updates.updater.check() } }
+                Button("Try a Build…") { state.tryingBuild = true }
             }
         }
     }
@@ -53,6 +61,7 @@ struct TwoByFourApp: App {
 final class AppState: ObservableObject {
     let store = SheetStore(directory: SheetStore.defaultDirectory)
     @Published var selection: UUID?
+    @Published var tryingBuild = false
 
     init() {
         if store.sheets.isEmpty { store.create(name: "Scratch") }
@@ -64,11 +73,14 @@ final class AppState: ObservableObject {
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKey: HotKey?
+    let updates = UpdateController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         hotKey = HotKey { Self.bringToFront() }
+        updates.start()
     }
 
     /// Activates the app and shows the notepad, reopening its window if it

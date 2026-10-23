@@ -12,7 +12,7 @@ public enum SheetEvaluator {
     /// One outcome per line, top to bottom. A variable is visible only to
     /// the lines below its assignment, and an error never stops later lines.
     public static func evaluate(_ text: String) -> [LineOutcome] {
-        var env = Environment()
+        var env = Scope()
         return text.split(separator: "\n", omittingEmptySubsequences: false).map { raw in
             let line = raw.trimmingCharacters(in: .whitespaces)
             if line.isEmpty { return .blank }

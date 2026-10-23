@@ -1,12 +1,12 @@
 import Foundation
 
 /// The variables defined so far on a sheet.
-public struct Environment: Sendable {
+public struct Scope: Sendable {
     public var variables: [String: Quantity] = [:]
     public init() {}
 }
 
-public func evaluate(_ expr: Expr, in env: Environment) throws -> Quantity {
+public func evaluate(_ expr: Expr, in env: Scope) throws -> Quantity {
     switch expr {
     case .number(let value):
         return .number(value)

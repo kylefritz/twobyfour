@@ -6,7 +6,7 @@ private func r(_ a: Int64, _ b: Int64 = 1) -> Rational { try! Rational(a, b) }
 /// Evaluates one line on its own and returns the value in base units.
 private func value(_ line: String) throws -> Quantity {
     guard case .expression(let e) = try parse(lex(line)) else { Issue.record("not an expression"); throw EngineError.overflow }
-    return try evaluate(e, in: Environment())
+    return try evaluate(e, in: Scope())
 }
 
 private func message(_ line: String) -> String? {
