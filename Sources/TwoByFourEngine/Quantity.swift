@@ -37,11 +37,11 @@ public struct Quantity: Equatable, Sendable {
     }
 
     public func multiplied(by other: Quantity) throws -> Quantity {
-        Quantity(value: try value.multiplied(by: other.value), dimension: dimension.multiplied(by: other.dimension))
+        Quantity(value: try value.multiplied(by: other.value), dimension: try dimension.multiplied(by: other.dimension))
     }
 
     public func divided(by other: Quantity) throws -> Quantity {
-        Quantity(value: try value.divided(by: other.value), dimension: dimension.divided(by: other.dimension))
+        Quantity(value: try value.divided(by: other.value), dimension: try dimension.divided(by: other.dimension))
     }
 
     public var negated: Quantity {

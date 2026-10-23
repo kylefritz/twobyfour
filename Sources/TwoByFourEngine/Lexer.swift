@@ -71,6 +71,9 @@ private struct Lexer {
             case "=": tokens.append(.equals)
             case "'", "\"", "°":
                 tokens.append(.unit(Units.lookup(String(c))!.symbol))
+                // Drawings write 8'-6": feet, a dash, then inches. The dash
+                // joins them; it isn't subtraction (that needs spaces).
+                if c == "'", peek() == "-", Self.isDigit(peek(1)) { i += 1 }
             default:
                 throw EngineError.unexpected(String(c))
             }

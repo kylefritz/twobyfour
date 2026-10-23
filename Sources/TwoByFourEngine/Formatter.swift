@@ -58,6 +58,10 @@ public enum ResultFormatter {
             primary = FormattedValue(text: "\(primary.text) (\(q.dimension.name) in inches/pounds)", isExact: primary.isExact)
             forms = []
         }
+        // A rounded answer also shows its exact value, first.
+        if !primary.isExact {
+            forms.insert(try exact(q), at: 0)
+        }
         var seen: Set<String> = [primary.text]
         let alternates = forms.filter { seen.insert($0.text).inserted }
         return FormattedResult(primary: primary, alternates: alternates)
@@ -112,6 +116,53 @@ public enum ResultFormatter {
         }
         if let symbol { text += symbol == "°" ? "°" : " \(symbol)" }
         return FormattedValue(text: text, isExact: rounded == amount)
+    }
+
+    /// The exact value: lengths in inches as a fraction (`13 49/381"`),
+    /// anything else in its shown unit as a terminating decimal when there is
+    /// one (`63.5029318 kg`) or else a fraction (`1/3`).
+    static func exact(_ q: Quantity) throws -> FormattedValue {
+        if q.dimension == .length, q.displayUnit == nil || ["ft", "in"].contains(q.displayUnit!.symbol) {
+            let sign = q.value.isNegative ? "-" : ""
+            return FormattedValue(text: sign + mixed(q.value.magnitude) + "\"", isExact: true)
+        }
+        let symbol: String? = q.displayUnit?.symbol ?? defaultSymbol(q.dimension)
+        let amount = try symbol.map { try q.value.divided(by: Units.lookup($0)!.toBase) } ?? q.value
+        let sign = amount.isNegative ? "-" : ""
+        var text = sign + (terminatingDecimal(amount.magnitude) ?? mixed(amount.magnitude))
+        if let symbol { text += symbol == "°" ? "°" : " \(symbol)" }
+        return FormattedValue(text: text, isExact: true)
+    }
+
+    private static func defaultSymbol(_ dimension: Dimension) -> String? {
+        switch dimension {
+        case .length: return "in"
+        case .area: return "sq ft"
+        case .volume: return "cu ft"
+        case .mass: return "lb"
+        case .angle: return "°"
+        default: return nil
+        }
+    }
+
+    /// `63.5029318` when the value ends within 12 decimals, else nil.
+    private static func terminatingDecimal(_ value: Rational) -> String? {
+        var d = value.denominator
+        var places = 0
+        while d % 2 == 0 { d /= 2 }
+        while d % 5 == 0 { d /= 5 }
+        guard d == 1 else { return nil }
+        var scaled = value
+        while scaled.denominator != 1 {
+            guard places < 12, let next = try? scaled.multiplied(by: Rational(10)) else { return nil }
+            scaled = next
+            places += 1
+        }
+        var digits = String(scaled.numerator)
+        guard places > 0 else { return digits }
+        while digits.count <= places { digits = "0" + digits }
+        digits.insert(".", at: digits.index(digits.endIndex, offsetBy: -places))
+        return digits
     }
 
     /// `9 1/2`, `3/8`, `12`: a non-negative value as a whole number and a

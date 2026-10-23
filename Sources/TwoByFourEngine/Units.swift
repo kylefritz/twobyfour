@@ -20,12 +20,21 @@ public struct Dimension: Hashable, Sendable {
     public static let mass = Dimension(mass: 1)
     public static let angle = Dimension(angle: 1)
 
-    public func multiplied(by other: Dimension) -> Dimension {
-        Dimension(length: length + other.length, mass: mass + other.mass, angle: angle + other.angle)
+    public func multiplied(by other: Dimension) throws -> Dimension {
+        try Dimension(length: Self.checked(length.addingReportingOverflow(other.length)),
+                      mass: Self.checked(mass.addingReportingOverflow(other.mass)),
+                      angle: Self.checked(angle.addingReportingOverflow(other.angle)))
     }
 
-    public func divided(by other: Dimension) -> Dimension {
-        Dimension(length: length - other.length, mass: mass - other.mass, angle: angle - other.angle)
+    public func divided(by other: Dimension) throws -> Dimension {
+        try Dimension(length: Self.checked(length.subtractingReportingOverflow(other.length)),
+                      mass: Self.checked(mass.subtractingReportingOverflow(other.mass)),
+                      angle: Self.checked(angle.subtractingReportingOverflow(other.angle)))
+    }
+
+    private static func checked(_ result: (partialValue: Int8, overflow: Bool)) throws -> Int8 {
+        guard !result.overflow else { throw EngineError.overflow }
+        return result.partialValue
     }
 
     /// The word used in messages: "Can't add length and weight".
