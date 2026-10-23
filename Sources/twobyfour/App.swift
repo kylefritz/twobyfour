@@ -4,6 +4,7 @@ import TwoByFourKit
 
 @main
 struct TwoByFourApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var state = AppState()
 
     init() {
@@ -40,6 +41,9 @@ struct TwoByFourApp: App {
                 Button("New Sheet") { state.newSheet() }
                     .keyboardShortcut("n")
             }
+            CommandGroup(after: .appInfo) {
+                Text("Bring to Front: \(HotKey.defaultLabel)")
+            }
         }
     }
 }
@@ -57,5 +61,28 @@ final class AppState: ObservableObject {
 
     func newSheet() {
         selection = store.create().id
+    }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var hotKey: HotKey?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        hotKey = HotKey { Self.bringToFront() }
+    }
+
+    /// Activates the app and shows the notepad, reopening its window if it
+    /// was closed (through the Window menu item SwiftUI adds for it).
+    static func bringToFront() {
+        NSApp.activate()
+        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue.hasPrefix("main") == true }) {
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+        let windowMenu = NSApp.mainMenu?.items.first { $0.submenu === NSApp.windowsMenu }?.submenu
+        if let item = windowMenu?.items.first(where: { $0.title == "twoByFour" }),
+           let index = windowMenu?.index(of: item) {
+            windowMenu?.performActionForItem(at: index)
+        }
     }
 }
