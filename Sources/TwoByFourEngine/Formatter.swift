@@ -1,0 +1,126 @@
+import Foundation
+
+/// The finest tape-measure mark a sheet rounds lengths to.
+public enum Precision: Int, CaseIterable, Codable, Sendable {
+    case half = 2, quarter = 4, eighth = 8, sixteenth = 16, thirtySecond = 32, sixtyFourth = 64
+
+    public var label: String { "1/\(rawValue)\"" }
+    var step: Rational { try! Rational(1, Int64(rawValue)) }
+}
+
+/// Text to show, and whether it's the exact value (`=`) or rounded (`≈`).
+public struct FormattedValue: Equatable, Sendable {
+    public let text: String
+    public let isExact: Bool
+
+    public init(text: String, isExact: Bool) {
+        self.text = text
+        self.isExact = isExact
+    }
+}
+
+/// The answer shown on the line, and the other ways to write it that
+/// clicking the answer reveals.
+public struct FormattedResult: Equatable, Sendable {
+    public let primary: FormattedValue
+    public let alternates: [FormattedValue]
+}
+
+public enum ResultFormatter {
+    public static func format(_ q: Quantity, precision: Precision) throws -> FormattedResult {
+        var forms: [FormattedValue]
+        var primary: FormattedValue
+        switch q.dimension {
+        case .length:
+            forms = [try feetInches(q.value, precision: precision),
+                     try inches(q.value, precision: precision),
+                     try decimal(q.value, unit: "m"),
+                     try decimal(q.value, unit: "cm"),
+                     try decimal(q.value, unit: "mm")]
+            switch q.displayUnit?.symbol {
+            case nil, "ft"?: primary = forms[0]
+            case "in"?: primary = forms[1]
+            case let symbol?: primary = try decimal(q.value, unit: symbol)
+            }
+        case .area:
+            (primary, forms) = try decimals(q, default: "sq ft", others: ["sq in", "m²"])
+        case .volume:
+            (primary, forms) = try decimals(q, default: "cu ft", others: ["cu yd", "gal", "L"])
+        case .mass:
+            (primary, forms) = try decimals(q, default: "lb", others: ["kg", "oz"])
+        case .angle:
+            (primary, forms) = try decimals(q, default: "°", others: [])
+        case .none:
+            primary = try decimal(q.value, unit: nil)
+            forms = []
+        default:
+            primary = try decimal(q.value, unit: nil)
+            primary = FormattedValue(text: "\(primary.text) (\(q.dimension.name) in inches/pounds)", isExact: primary.isExact)
+            forms = []
+        }
+        var seen: Set<String> = [primary.text]
+        let alternates = forms.filter { seen.insert($0.text).inserted }
+        return FormattedResult(primary: primary, alternates: alternates)
+    }
+
+    private static func decimals(_ q: Quantity, default symbol: String, others: [String]) throws
+        -> (FormattedValue, [FormattedValue]) {
+        let primary = try decimal(q.value, unit: q.displayUnit?.symbol ?? symbol)
+        let forms = try ([symbol] + others).map { try decimal(q.value, unit: $0) }
+        return (primary, forms)
+    }
+
+    /// `8' 9"`, `4' 0 1/32"`, or inches only under a foot: `9 1/2"`.
+    /// Rounds before splitting off feet, so 11' 11 31/32" becomes 12' 0".
+    public static func feetInches(_ inches: Rational, precision: Precision) throws -> FormattedValue {
+        let rounded = try inches.rounded(toMultipleOf: precision.step)
+        let size = rounded.magnitude
+        let sign = rounded.isNegative ? "-" : ""
+        let isExact = rounded == inches
+        guard size >= (try Rational(12)) else {
+            return FormattedValue(text: sign + mixed(size) + "\"", isExact: isExact)
+        }
+        let feet = try size.divided(by: Rational(12)).wholePart
+        let rest = try size.subtracting(Rational(feet).multiplied(by: Rational(12)))
+        let restText = rest.isZero ? "0" : (rest.wholePart == 0 ? "0 " + mixed(rest) : mixed(rest))
+        return FormattedValue(text: "\(sign)\(feet)' \(restText)\"", isExact: isExact)
+    }
+
+    /// Inches only, to the chosen fraction: `105"`, `48 1/32"`.
+    public static func inches(_ inches: Rational, precision: Precision) throws -> FormattedValue {
+        let rounded = try inches.rounded(toMultipleOf: precision.step)
+        let sign = rounded.isNegative ? "-" : ""
+        return FormattedValue(text: sign + mixed(rounded.magnitude) + "\"", isExact: rounded == inches)
+    }
+
+    /// `value` (in base units) in `unit`, to at most three decimals:
+    /// `2.667 m`, `63.503 kg`. With no unit, just the number.
+    public static func decimal(_ value: Rational, unit symbol: String?) throws -> FormattedValue {
+        var amount = value
+        if let symbol {
+            amount = try value.divided(by: Units.lookup(symbol)!.toBase)
+        }
+        let rounded = try amount.rounded(toMultipleOf: Rational(1, 1000))
+        // `rounded` is a whole number of thousandths.
+        let thousandths = try rounded.multiplied(by: Rational(1000)).numerator
+        let whole = thousandths.magnitude / 1000, fraction = thousandths.magnitude % 1000
+        var text = (thousandths < 0 ? "-" : "") + "\(whole)"
+        if fraction != 0 {
+            var digits = String(format: "%03llu", fraction)
+            while digits.hasSuffix("0") { digits.removeLast() }
+            text += "." + digits
+        }
+        if let symbol { text += symbol == "°" ? "°" : " \(symbol)" }
+        return FormattedValue(text: text, isExact: rounded == amount)
+    }
+
+    /// `9 1/2`, `3/8`, `12`: a non-negative value as a whole number and a
+    /// reduced fraction.
+    private static func mixed(_ value: Rational) -> String {
+        let whole = value.wholePart
+        let fraction = (try? value.subtracting(Rational(whole))) ?? .zero
+        if fraction.isZero { return "\(whole)" }
+        let part = "\(fraction.numerator)/\(fraction.denominator)"
+        return whole == 0 ? part : "\(whole) \(part)"
+    }
+}
