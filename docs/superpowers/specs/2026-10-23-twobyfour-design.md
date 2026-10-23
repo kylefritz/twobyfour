@@ -96,7 +96,7 @@ Soulver-like free text, one expression per line. The builder designs the grammar
 - `space 7 in 6' 2"` (equal spacing), `miter 6 sides`, `crown 38°` (saw settings)
 - `fasten 3/4" ply to 2x4` (nail/screw length suggestion)
 
-**Unknown input** → Claude fallback (Section 8). Lines that are clearly prose/comments (e.g. starting with `//` or `#`) are never sent.
+**Unknown input** → Claude fallback (Section 8). Lines that are clearly prose/comments (starting with `//` or `# ` — hash then space, so `#9 screw` still works) are never sent.
 
 **Which dimension a nominal item contributes in arithmetic (Claude's call, chosen for correctness):** boards and sheet goods contribute their **thickness** (the stacking dimension). Every other nominal item (nails, screws, brads, pipe, tube, threads) is **refused in arithmetic unless a dimension is named**, e.g. `16d length`, `#9 dia`, `1/2 PEX od`, `1/2" NPT od`. The error says which dimensions are available. Display-only use (`16d` alone on a line) is always fine.
 
