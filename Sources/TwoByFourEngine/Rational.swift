@@ -4,6 +4,9 @@ import Foundation
 public enum EngineError: Error, Equatable, Sendable {
     case overflow
     case divideByZero
+    /// Verb, then the two kinds: ("add", "length", "weight").
+    case mismatch(String, String, String)
+    case cannotConvert(String, String)
 }
 
 /// An exact fraction, always reduced, with a positive denominator. Every
