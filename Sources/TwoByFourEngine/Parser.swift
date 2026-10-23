@@ -134,6 +134,12 @@ private struct Parser {
 
     /// A number, its unit, and any smaller lengths written right after it.
     mutating func numberWithUnits(_ value: Rational) throws -> Expr {
+        // `3 cubits` or `3 width`: a word right after a number multiplies it,
+        // so an unknown word reads as "Unknown: cubits" rather than a syntax error.
+        if case .ident(let word)? = peek(), !["x", "to", "as"].contains(word) {
+            i += 1
+            return .binary(.multiply, .number(value), .variable(word))
+        }
         guard case .unit(let symbol)? = peek() else { return .number(value) }
         i += 1
         var e = Expr.quantity(value, symbol)

@@ -48,6 +48,12 @@ private func p(_ line: String) throws -> Statement { try parse(lex(line)) }
         #expect(try p("-3/32\"") == .expression(.negate(q(3, 32, "in"))))
     }
 
+    @Test func aNumberThenAWordMultipliesByThatWord() throws {
+        // So `3 cubits` evaluates to "Unknown: cubits", and `3 width` uses a variable.
+        #expect(try p("3 cubits") == .expression(.binary(.multiply, .number(r(3)), .variable("cubits"))))
+        #expect(try p("2 x 4") == .expression(.binary(.multiply, .number(r(2)), .number(r(4)))))
+    }
+
     @Test func boardNamesParse() throws {
         #expect(try p("2x4") == .expression(.nominal("2x4")))
     }

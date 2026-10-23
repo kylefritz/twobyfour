@@ -1,18 +1,5 @@
 import Foundation
 
-/// Why a line couldn't be worked out. `message` is what the notepad shows.
-public enum EngineError: Error, Equatable, Sendable {
-    case overflow
-    case divideByZero
-    /// Verb, then the two kinds: ("add", "length", "weight").
-    case mismatch(String, String, String)
-    case cannotConvert(String, String)
-    /// Something the line can't contain at that spot.
-    case unexpected(String)
-    /// A unit's name used as a variable: `m = 3`.
-    case reservedName(String)
-}
-
 /// An exact fraction, always reduced, with a positive denominator. Every
 /// calculation in the engine uses these so `10' / 3` is exactly 3' 4" and
 /// nothing drifts; overflow throws instead of trapping.
