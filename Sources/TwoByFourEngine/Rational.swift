@@ -7,6 +7,8 @@ public enum EngineError: Error, Equatable, Sendable {
     /// Verb, then the two kinds: ("add", "length", "weight").
     case mismatch(String, String, String)
     case cannotConvert(String, String)
+    /// Something the line can't contain at that spot.
+    case unexpected(String)
 }
 
 /// An exact fraction, always reduced, with a positive denominator. Every
