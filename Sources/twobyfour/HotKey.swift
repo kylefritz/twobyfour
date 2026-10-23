@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import TwoByFourKit
 
 /// A system-wide keyboard shortcut via Carbon's RegisterEventHotKey, which
 /// needs no Accessibility permission.
@@ -26,7 +27,7 @@ final class HotKey {
         let id = EventHotKeyID(signature: OSType(0x3278_3420), id: 1) // "2x4 "
         let registered = RegisterEventHotKey(keyCode, modifiers, id, GetApplicationEventTarget(), 0, &ref)
         guard installed == noErr, registered == noErr else {
-            NSLog("twoByFour: couldn't register the global shortcut (\(installed), \(registered))")
+            Log.shared.write("couldn't register the global shortcut \(HotKey.defaultLabel) (\(installed), \(registered))")
             return nil
         }
     }

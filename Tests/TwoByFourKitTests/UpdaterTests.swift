@@ -209,6 +209,17 @@ final class TestHTTPServer: @unchecked Sendable {
         #expect(u.state == .ready(version: "0.1.1", notes: URL(string: "https://example.com/v0.1.1")))
     }
 
+    @Test func aFailedCheckLogsWhatGitHubAnswered() async throws {
+        let server = try TestHTTPServer()
+        defer { server.stop() }
+        let installed = try makeBundle(in: work.appendingPathComponent("Applications"), version: "0.1.0")
+        // No stable release yet: GitHub's /releases/latest is a 404.
+        let u = updater(server, installed: installed, version: "0.1.0")
+        await u.check()
+        let log = Log(file: work.appendingPathComponent("log")).tail(5).joined(separator: "\n")
+        #expect(log.contains("update check failed: GitHub answered 404"))
+    }
+
     // MARK: Counting installs
 
     @Test func downloadsOnlyComeFromThisRepositorysReleases() async throws {

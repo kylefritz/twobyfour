@@ -22,3 +22,7 @@ draws a sample sheet without a screen, for a quick layout check.
 
 ## Shortcut
 - [ ] In another app, press ⌃⌥Space → twoByFour comes to the front with the notepad focused.
+
+## Debug report
+- [ ] Type a few lines, then Help → Copy Debug Report and paste into a chat → it shows the build, macOS, each line with its answer, and the recent log.
+- [ ] Help → Show Log in Finder selects `~/Library/Logs/twoByFour/twoByFour.log`.

@@ -52,6 +52,12 @@ struct TwoByFourApp: App {
                 Button("Check for Updates…") { Task { await delegate.updates.updater.check() } }
                 Button("Try a Build…") { state.tryingBuild = true }
             }
+            CommandGroup(replacing: .help) {
+                Button("Copy Debug Report") { state.copyDebugReport(updates: delegate.updates) }
+                Button("Show Log in Finder") {
+                    NSWorkspace.shared.activateFileViewerSelecting([AppInfo.logFile])
+                }
+            }
         }
     }
 }
@@ -70,6 +76,18 @@ final class AppState: ObservableObject {
 
     func newSheet() {
         selection = store.create().id
+        Log.shared.write("new sheet")
+    }
+
+    /// Puts the build, the open sheet with its answers and the end of the
+    /// log on the clipboard, ready to paste into a chat or an issue.
+    func copyDebugReport(updates: UpdateController) {
+        let sheet = store.sheets.first { $0.id == selection }
+        Log.shared.write("copied a debug report")
+        let report = Diagnostics.report(version: updates.version, commit: updates.commit, preview: updates.preview,
+                                        sheet: sheet, log: Log.shared.tail(300))
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(report, forType: .string)
     }
 }
 
@@ -79,8 +97,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let updates = UpdateController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        hotKey = HotKey { Self.bringToFront() }
+        let os = ProcessInfo.processInfo.operatingSystemVersionString
+        let build = [updates.version, updates.commit, updates.preview].filter { !$0.isEmpty }.joined(separator: " ")
+        Log.shared.write("launched \(build) on \(os), channel \(UpdateChannel.current().rawValue)")
+        NSSetUncaughtExceptionHandler { exception in
+            Log.shared.write("crashed: \(exception.name.rawValue): \(exception.reason ?? "")\n\(exception.callStackSymbols.joined(separator: "\n"))")
+            Log.shared.flush()
+        }
+        hotKey = HotKey {
+            Log.shared.write("global shortcut pressed")
+            Self.bringToFront()
+        }
+        if hotKey != nil { Log.shared.write("global shortcut \(HotKey.defaultLabel) registered") }
         updates.start()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        Log.shared.write("quit")
+        Log.shared.flush()
     }
 
     /// Activates the app and shows the notepad, reopening its window if it
@@ -91,6 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.makeKeyAndOrderFront(nil)
             return
         }
+        Log.shared.write("reopening the closed notepad window")
         let windowMenu = NSApp.mainMenu?.items.first { $0.submenu === NSApp.windowsMenu }?.submenu
         if let item = windowMenu?.items.first(where: { $0.title == "twoByFour" }),
            let index = windowMenu?.index(of: item) {
