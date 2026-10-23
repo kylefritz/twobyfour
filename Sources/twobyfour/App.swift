@@ -17,6 +17,16 @@ struct TwoByFourApp: App {
                 exit(1)
             }
         }
+        if let flag = CommandLine.arguments.firstIndex(of: "--snapshot-notepad"), flag + 1 < CommandLine.arguments.count {
+            do {
+                try Snapshot.notepad(to: URL(fileURLWithPath: CommandLine.arguments[flag + 1]),
+                                     light: CommandLine.arguments.contains("--light"))
+                exit(0)
+            } catch {
+                FileHandle.standardError.write(Data("couldn't draw the snapshot: \(error)\n".utf8))
+                exit(1)
+            }
+        }
     }
 
     var body: some Scene {

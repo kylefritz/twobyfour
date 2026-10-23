@@ -68,28 +68,48 @@ struct SheetListView: View {
     }
 }
 
-/// One sheet: the notepad and its rounding choice.
+/// One sheet: the notepad and its rounding choice. Typing saves half a
+/// second after the last keystroke, and when the sheet closes.
 struct SheetDetailView: View {
     @ObservedObject var store: SheetStore
     let sheet: Sheet
+    @State private var text = ""
+    @State private var pendingSave: Task<Void, Never>?
 
     var body: some View {
-        TextEditor(text: Binding(get: { sheet.text }, set: { text in
-            var edited = sheet
-            edited.text = text
-            store.update(edited)
-        }))
-        .font(.system(size: 14, design: .monospaced))
-        .navigationTitle(sheet.name)
-        .toolbar {
-            Picker("Round to", selection: Binding(get: { sheet.precision }, set: { precision in
-                var edited = sheet
-                edited.precision = precision
-                store.update(edited)
-            })) {
-                ForEach(Precision.allCases, id: \.self) { Text($0.label).tag($0) }
+        NotepadEditor(text: $text, precision: sheet.precision)
+            .navigationTitle(sheet.name)
+            .onAppear { text = sheet.text }
+            .onChange(of: text) { _, newText in
+                guard newText != sheet.text else { return }
+                pendingSave?.cancel()
+                pendingSave = Task {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    guard !Task.isCancelled else { return }
+                    save()
+                }
             }
-            .help("Round lengths to the nearest mark")
-        }
+            .onDisappear {
+                pendingSave?.cancel()
+                save()
+            }
+            .toolbar {
+                Picker("Round to", selection: Binding(get: { sheet.precision }, set: { precision in
+                    var edited = sheet
+                    edited.precision = precision
+                    edited.text = text
+                    store.update(edited)
+                })) {
+                    ForEach(Precision.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                .help("Round lengths to the nearest mark")
+            }
+    }
+
+    private func save() {
+        guard text != sheet.text else { return }
+        var edited = sheet
+        edited.text = text
+        store.update(edited)
     }
 }
