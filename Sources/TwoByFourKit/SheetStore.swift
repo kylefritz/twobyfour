@@ -26,9 +26,11 @@ public struct Sheet: Codable, Identifiable, Equatable, Sendable {
 public final class SheetStore: ObservableObject {
     @Published public private(set) var sheets: [Sheet] = []
     public let directory: URL
+    private let log: Log
 
-    public init(directory: URL) {
+    public init(directory: URL, log: Log = .shared) {
         self.directory = directory
+        self.log = log
         load()
     }
 
@@ -69,7 +71,7 @@ public final class SheetStore: ObservableObject {
             encoder.dateEncodingStrategy = .iso8601
             try encoder.encode(sheet).write(to: file(for: sheet.id), options: .atomic)
         } catch {
-            NSLog("twoByFour: couldn't save sheet \(sheet.id): \(error)")
+            log.write("couldn't save sheet \(sheet.id): \(error)")
         }
         sheets.removeAll { $0.id == sheet.id }
         sheets.append(sheet)
@@ -81,8 +83,15 @@ public final class SheetStore: ObservableObject {
         decoder.dateDecodingStrategy = .iso8601
         let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
         sheets = files.filter { $0.pathExtension == "json" }.compactMap { url in
-            guard let data = try? Data(contentsOf: url) else { return nil }
-            return try? decoder.decode(Sheet.self, from: data)
+            do {
+                return try decoder.decode(Sheet.self, from: Data(contentsOf: url))
+            } catch DecodingError.dataCorrupted(let context) {
+                log.write("couldn't read sheet \(url.lastPathComponent): \(context.debugDescription)")
+                return nil
+            } catch {
+                log.write("couldn't read sheet \(url.lastPathComponent): \(error)")
+                return nil
+            }
         }
         sort()
     }

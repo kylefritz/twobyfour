@@ -19,6 +19,14 @@ public enum AppInfo {
     }
 }
 
+/// A response other than 200 from GitHub. A 404 from /releases/latest
+/// means there's no stable release yet, only betas.
+struct HTTPStatusError: LocalizedError {
+    let status: Int
+    let url: URL?
+    var errorDescription: String? { "GitHub answered \(status) for \(url?.path ?? "?")" }
+}
+
 /// A dotted numeric version such as `1.4.0`, with or without a leading `v`,
 /// optionally a beta of it: `1.4.0-beta.7` comes after 1.3.x and before 1.4.0.
 public struct Version: Comparable, Equatable, CustomStringConvertible, Sendable {
@@ -282,7 +290,8 @@ public final class Updater: ObservableObject {
         var request = request
         request.setValue("twoByFour/\(currentVersion)", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await session.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard status == 200 else { throw HTTPStatusError(status: status, url: request.url) }
         return data
     }
 
