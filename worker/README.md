@@ -41,7 +41,7 @@ bun install
 bun test               # runs the real SQL against bun:sqlite
 bun run typecheck
 bun run deploy         # cf deploy; attaches twobyfour.kylefritz.co
-cf d1 migrations apply <database id>   # after adding a file to migrations/
+bun run migrate 58e12831-ad66-49cd-bb5a-a2b8be8b003b   # after adding a file to migrations/
 ```
 
 Set or change the admin token by deploying with `--secrets-file` (a `.env`

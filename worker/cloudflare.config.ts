@@ -9,7 +9,7 @@ export default defineConfig({
 		entrypoint,
 		domains: ["twobyfour.kylefritz.co"],
 		env: {
-			DB: bindings.d1({ name: "twobyfour" }),
+			DB: bindings.d1({ name: "twobyfour", id: "58e12831-ad66-49cd-bb5a-a2b8be8b003b" }),
 			// Reading logs back needs `Authorization: Bearer <ADMIN_TOKEN>`.
 			ADMIN_TOKEN: bindings.secret(),
 		},
