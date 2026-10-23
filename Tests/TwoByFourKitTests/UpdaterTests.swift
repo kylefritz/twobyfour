@@ -214,10 +214,12 @@ final class TestHTTPServer: @unchecked Sendable {
         defer { server.stop() }
         let installed = try makeBundle(in: work.appendingPathComponent("Applications"), version: "0.1.0")
         // No stable release yet: GitHub's /releases/latest is a 404.
-        let u = updater(server, installed: installed, version: "0.1.0")
+        let log = Log(file: work.appendingPathComponent("log"))
+        let u = Updater(releasesURL: server.url("/latest"), bundleURL: installed, currentVersion: "0.1.0",
+                        log: log, kind: .release, verifySignature: { _ in true },
+                        trustedDownloads: server.url("/").absoluteString)
         await u.check()
-        let log = Log(file: work.appendingPathComponent("log")).tail(5).joined(separator: "\n")
-        #expect(log.contains("update check failed: GitHub answered 404"))
+        #expect(log.tail(5).joined(separator: "\n").contains("update check failed: GitHub answered 404"))
     }
 
     // MARK: Counting installs

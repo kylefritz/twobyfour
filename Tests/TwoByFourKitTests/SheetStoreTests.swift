@@ -44,9 +44,10 @@ import Testing
         try Data("not json".utf8).write(to: bad)
         let store = SheetStore(directory: dir, log: testLog)
         _ = store.create(name: "Good")
-        let reloaded = SheetStore(directory: dir, log: testLog)
+        let log = testLog
+        let reloaded = SheetStore(directory: dir, log: log)
         #expect(reloaded.sheets.map(\.name) == ["Good"])
         #expect(FileManager.default.fileExists(atPath: bad.path))
-        #expect(testLog.tail(5).contains { $0.contains("couldn't read sheet bad.json: The given data was not valid JSON.") })
+        #expect(log.tail(5).contains { $0.contains("couldn't read sheet bad.json: The given data was not valid JSON.") })
     }
 }
