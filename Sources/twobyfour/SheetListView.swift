@@ -52,6 +52,7 @@ struct SheetListView: View {
             TextField("Name", text: $newName)
             Button("Rename") {
                 if var sheet = renaming, !newName.trimmingCharacters(in: .whitespaces).isEmpty {
+                    Log.shared.write("renamed sheet \"\(sheet.name)\" to \"\(newName)\"")
                     sheet.name = newName
                     store.update(sheet)
                 }
@@ -62,6 +63,7 @@ struct SheetListView: View {
     }
 
     private func delete(_ sheet: Sheet) {
+        Log.shared.write("deleted sheet \"\(sheet.name)\"")
         store.delete(id: sheet.id)
         if state.selection == sheet.id { state.selection = store.sheets.first?.id }
         if store.sheets.isEmpty { state.newSheet() }
@@ -95,6 +97,7 @@ struct SheetDetailView: View {
             }
             .toolbar {
                 Picker("Round to", selection: Binding(get: { sheet.precision }, set: { precision in
+                    Log.shared.write("sheet \"\(sheet.name)\" now rounds to \(precision.label)")
                     var edited = sheet
                     edited.precision = precision
                     edited.text = text
@@ -108,6 +111,9 @@ struct SheetDetailView: View {
 
     private func save() {
         guard text != sheet.text else { return }
+        for change in Diagnostics.changes(from: sheet.text, to: text, precision: sheet.precision) {
+            Log.shared.write("\(sheet.name) \(change)")
+        }
         var edited = sheet
         edited.text = text
         store.update(edited)

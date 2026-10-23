@@ -1,0 +1,15 @@
+#!/bin/sh
+# Reads logs people sent with Help → Send Logs.
+#   scripts/logs           the 20 newest, one line each
+#   scripts/logs <ref>     one report in full
+# The admin token lives in ~/.config/twobyfour/admin-token.
+set -eu
+server=${TWOBYFOUR_SERVER:-https://twobyfour.kylefritz.co}
+token=$(cat "$HOME/.config/twobyfour/admin-token")
+if [ $# -eq 0 ]; then
+  curl -fsS -H "Authorization: Bearer $token" "$server/v1/logs?limit=${LIMIT:-20}" |
+    jq -r '.[] | "\(.id)  \(.received_at[0:16])  \(.username)@\(.computer)  \(.app_version)  \(.note | gsub("\n"; " ") | .[0:60])"'
+else
+  curl -fsS -H "Authorization: Bearer $token" "$server/v1/logs/$1" |
+    jq -r '"\(.id) from \(.full_name) (\(.username)) on \(.computer), \(.platform) \(.os_version) \(.model)\nApp \(.app_version) \(.app_commit) \(.channel), received \(.received_at) from \(.ip) \(.country)\nNote: \(.note)\n\n\(.report)"'
+fi

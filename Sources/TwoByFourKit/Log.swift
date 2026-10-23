@@ -30,6 +30,21 @@ public final class Log: @unchecked Sendable {
         queue.sync {}
     }
 
+    /// The last `count` lines written, oldest first, reaching back into the
+    /// rolled-over file when the current one is short.
+    public func tail(_ count: Int) -> [String] {
+        flush()
+        let read = { (url: URL) -> [String] in
+            guard let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+            return text.split(separator: "\n").map(String.init)
+        }
+        var lines = read(file)
+        if lines.count < count {
+            lines = read(file.appendingPathExtension("1")) + lines
+        }
+        return Array(lines.suffix(count))
+    }
+
     private func append(_ line: String) {
         let fm = FileManager.default
         try? fm.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)

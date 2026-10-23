@@ -19,7 +19,7 @@ final class UpdateController: ObservableObject {
         commit = info["TwoByFourCommit"] as? String ?? ""
         updater = Updater(releasesURL: AppInfo.latestReleaseURL, releasesListURL: AppInfo.releasesListURL,
                           bundleURL: Bundle.main.bundleURL, currentVersion: version,
-                          log: Log(file: AppInfo.logFile), channel: { UpdateChannel.current() })
+                          log: Log.shared, channel: { UpdateChannel.current() })
     }
 
     /// Checks now and every six hours.

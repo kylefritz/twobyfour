@@ -193,6 +193,7 @@ final class ResultsColumnView: NSView {
         let point = convert(event.locationInWindow, from: nil)
         guard let row = rows.first(where: { hitRect($0)?.contains(point) == true }),
               case .result(let result) = row.display, let rect = hitRect(row) else { return }
+        Log.shared.write("opened other units for line \(row.line + 1): \(result.primary.text)")
         popover?.close()
         let popover = NSPopover()
         popover.behavior = .transient

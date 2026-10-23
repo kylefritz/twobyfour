@@ -1,0 +1,19 @@
+{
+	"name": "twobyfour-server",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "cf dev",
+		"test": "bun test",
+		"typecheck": "cf workers types && tsc",
+		"deploy": "cf deploy",
+		"migrate": "cf d1 migrations apply"
+	},
+	"devDependencies": {
+		"@cloudflare/vite-plugin": "beta",
+		"@types/bun": "1.3.1",
+		"cf": "^1.0.0-beta.21",
+		"typescript": "^7.0.2",
+		"vite": "^8.3.0"
+	}
+}
