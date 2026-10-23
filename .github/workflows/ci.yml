@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Build and test (macOS)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version
+      - name: Test
+        run: make test
+      - name: Build the app
+        run: make app
+      - name: Check the bundle
+        run: |
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' build/twoByFour.app/Contents/Info.plist)" = "dev"
+          codesign --verify --deep --strict build/twoByFour.app
+          build/twoByFour.app/Contents/MacOS/twobyfour --snapshot-notepad build/notepad.png
+          test -s build/notepad.png

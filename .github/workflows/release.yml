@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    # Betas (v0.0.1-beta.7) are published by beta.yml, not here.
+    tags: ["v*", "!v*-*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version from tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - name: Test
+        run: make test
+      - name: Build the app
+        run: make app VERSION="$VERSION"
+      - name: Check the bundle
+        run: |
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' build/twoByFour.app/Contents/Info.plist)" = "$VERSION"
+          codesign --verify --deep --strict build/twoByFour.app
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # The install notes come first, then GitHub's list of changes.
+        run: gh release create "$GITHUB_REF_NAME" build/twoByFour.zip --title "twoByFour $VERSION" --notes-file .github/release-notes.md --generate-notes
