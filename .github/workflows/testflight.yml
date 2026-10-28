@@ -1,0 +1,90 @@
+name: TestFlight
+
+# Every commit on main that passes CI goes to TestFlight as the next patch
+# version (the Mac's beta number without "-beta"), build number = this run's
+# number. Until the signing secrets are set (README, "iPhone app") the job
+# says so and skips the upload.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: macos-26
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Secrets
+        id: secrets
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          if [ -z "$ASC_KEY_ID" ]; then
+            echo "::notice::TestFlight secrets not set; skipping upload"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - name: Version
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          last=$(git tag --list 'v[0-9]*' --sort=-v:refname | grep -v -e '-' | head -1)
+          IFS=. read -r major minor patch <<< "${last:-v0.0.0}"
+          major=${major#v}
+          echo "VERSION=$major.$minor.$((patch + 1))" >> "$GITHUB_ENV"
+      - name: Install signing
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          CERT_P12: ${{ secrets.IOS_DIST_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE: ${{ secrets.IOS_PROFILE }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password=$(uuidgen)
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          security import "$RUNNER_TEMP/dist.p12" -k "$keychain" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/dist.p12"
+
+          profiles="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          mkdir -p "$profiles"
+          echo "$PROFILE" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          uuid=$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" | plutil -extract UUID raw -)
+          mv "$RUNNER_TEMP/profile.mobileprovision" "$profiles/$uuid.mobileprovision"
+
+          echo "$ASC_KEY_P8" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+      - name: Build and upload
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          brew install xcodegen
+          scripts/testflight.sh "$VERSION" "$GITHUB_RUN_NUMBER" "${SHA:0:7}"
+      - name: Remove signing
+        if: always() && steps.secrets.outputs.ready == 'true'
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/AuthKey.p8"

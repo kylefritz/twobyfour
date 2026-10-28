@@ -45,6 +45,14 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
+      # Release builds go to TestFlight, signed by hand with the Apple
+      # Distribution certificate and the profile below (see README). Set here,
+      # not on the command line, which would also hit the package's targets.
+      configs:
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: Apple Distribution
+          PROVISIONING_PROFILE_SPECIFIER: twoByFour App Store
   twoByFourTests:
     type: bundle.unit-test
     platform: iOS
