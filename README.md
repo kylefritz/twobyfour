@@ -73,6 +73,12 @@ one-time steps are done on the Apple Developer account (team `75W4LUJ7MW`):
    base64 -i twoByFour_App_Store.mobileprovision | gh secret set IOS_PROFILE
    ```
 
-Then install TestFlight on the phone; builds show up there for the account
-that owns the app. To upload by hand instead, with the certificate and profile
+7. **Testers.** App Store Connect → the app → TestFlight → Internal Testing →
+   + to make a group (e.g. "Me") with automatic distribution on, and add
+   yourself. Without this, uploads process but never reach a phone.
+
+Then install TestFlight on the phone and sign in with that Apple ID; each new
+build shows up there. A re-run of the same workflow run reuses its build
+number, which App Store Connect rejects; push a new commit instead. To upload
+by hand instead, with the certificate and profile
 installed: `ASC_KEY_PATH=… ASC_KEY_ID=… ASC_ISSUER_ID=… scripts/testflight.sh 0.0.1 1`.

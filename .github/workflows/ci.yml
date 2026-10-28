@@ -35,11 +35,12 @@ jobs:
           brew install xcodegen
       - name: Pick a simulator
         run: |
-          sim=$(xcrun simctl list devices available | grep -m1 -oE 'iPhone [^(]+' | sed 's/ *$//')
-          test -n "$sim"
-          echo "IOS_SIM=$sim" >> "$GITHUB_ENV"
+          id=$(scripts/pick-simulator)
+          test -n "$id"
+          xcrun simctl list devices | grep "$id"
+          echo "IOS_DEST=platform=iOS Simulator,id=$id" >> "$GITHUB_ENV"
       - name: Test (unit and UI tests in the simulator)
-        run: make ios-test IOS_SIM="$IOS_SIM"
+        run: make ios-test IOS_DEST="$IOS_DEST"
 
   server:
     name: Server tests

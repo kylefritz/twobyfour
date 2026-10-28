@@ -11,6 +11,7 @@ VERSION ?= dev
 PREFIX ?= /Applications
 
 IOS_SIM ?= iPhone 17
+IOS_DEST ?= platform=iOS Simulator,name=$(IOS_SIM)
 IOS_XCODEBUILD := xcodebuild -project iOS/twoByFour.xcodeproj -scheme twoByFour -derivedDataPath build/ios
 # Simulator builds need no signing, so CI needs no Apple account for them.
 IOS_UNSIGNED := CODE_SIGNING_ALLOWED=NO
@@ -45,4 +46,4 @@ ios-build: ios-project
 	$(IOS_XCODEBUILD) -destination 'generic/platform=iOS Simulator' $(IOS_UNSIGNED) build -quiet
 
 ios-test: ios-project
-	$(IOS_XCODEBUILD) -destination 'platform=iOS Simulator,name=$(IOS_SIM)' $(IOS_UNSIGNED) test
+	$(IOS_XCODEBUILD) -destination '$(IOS_DEST)' $(IOS_UNSIGNED) test
