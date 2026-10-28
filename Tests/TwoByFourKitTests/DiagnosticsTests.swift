@@ -48,4 +48,14 @@ import Testing
         #expect(report.contains("line 2: 2x4 + → error: "))
         #expect(report.hasSuffix("12:00 launched\n```\n"))
     }
+
+    @Test func reportNamesThisPlatform() {
+        let report = Diagnostics.report(version: "1.0", commit: "", preview: "", sheet: nil, log: [])
+        let second = report.split(separator: "\n")[1]
+        #if os(macOS)
+        #expect(second.hasPrefix("macOS ") && second.contains("update channel:"))
+        #else
+        #expect(second.hasPrefix("iOS "))
+        #endif
+    }
 }

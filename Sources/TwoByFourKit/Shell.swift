@@ -1,3 +1,4 @@
+#if os(macOS)  // iOS apps can't run other programs.
 @preconcurrency import Dispatch
 import Foundation
 
@@ -158,3 +159,4 @@ private final class Once: @unchecked Sendable {
         pending?()
     }
 }
+#endif

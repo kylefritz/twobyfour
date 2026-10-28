@@ -33,7 +33,12 @@ public enum Diagnostics {
         if !commit.isEmpty { build += " (\(commit))" }
         if !preview.isEmpty { build += " \(preview)" }
         var out = "\(build)\n"
-        out += "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion), update channel: \(UpdateChannel.current().rawValue)\n"
+        let osVersion = "\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)"
+        #if os(macOS)
+        out += "macOS \(osVersion), update channel: \(UpdateChannel.current().rawValue)\n"
+        #else
+        out += "iOS \(osVersion) (\(Identity.current().model))\n"
+        #endif
         out += "Generated \(ISO8601DateFormatter().string(from: Date()))\n\n"
         if let sheet {
             out += "Sheet \"\(sheet.name)\", rounding to \(sheet.precision.label):\n```\n"
