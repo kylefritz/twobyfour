@@ -16,7 +16,7 @@ IOS_XCODEBUILD := xcodebuild -project iOS/twoByFour.xcodeproj -scheme twoByFour 
 # Simulator builds need no signing, so CI needs no Apple account for them.
 IOS_UNSIGNED := CODE_SIGNING_ALLOWED=NO
 
-.PHONY: build test app install clean ios-project ios-icon ios-build ios-test
+.PHONY: build test app install clean ios-project ios-icon ios-build ios-test testflight
 
 build:
 	swift build -c release
@@ -47,3 +47,7 @@ ios-build: ios-project
 
 ios-test: ios-project
 	$(IOS_XCODEBUILD) -destination '$(IOS_DEST)' $(IOS_UNSIGNED) test
+
+# Uploads to TestFlight with the next version and build number (scripts/testflight.sh).
+testflight:
+	scripts/testflight.sh

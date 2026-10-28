@@ -1,8 +1,8 @@
 name: TestFlight
 
 # Every commit on main that passes CI goes to TestFlight as the next patch
-# version (the Mac's beta number without "-beta"), build number = this run's
-# number. Until the API key secrets are set (README, "iPhone app") the job
+# version (the Mac's beta number without "-beta"), with the next build number
+# App Store Connect hasn't seen (scripts/testflight.sh picks both). Until the API key secrets are set (README, "iPhone app") the job
 # says so and skips the upload.
 
 on:
@@ -41,13 +41,10 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
-      - name: Version
+      - uses: oven-sh/setup-bun@v2
         if: steps.secrets.outputs.ready == 'true'
-        run: |
-          last=$(git tag --list 'v[0-9]*' --sort=-v:refname | grep -v -e '-' | head -1)
-          IFS=. read -r major minor patch <<< "${last:-v0.0.0}"
-          major=${major#v}
-          echo "VERSION=$major.$minor.$((patch + 1))" >> "$GITHUB_ENV"
+        with:
+          bun-version: 1.4.2
       - name: API key
         if: steps.secrets.outputs.ready == 'true'
         env:
@@ -62,7 +59,7 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           brew install xcodegen
-          scripts/testflight.sh "$VERSION" "$GITHUB_RUN_NUMBER" "${SHA:0:7}"
+          scripts/testflight.sh "" "" "${SHA:0:7}"
       - name: Remove the key
         if: always() && steps.secrets.outputs.ready == 'true'
         run: rm -f "$RUNNER_TEMP/AuthKey.p8"
