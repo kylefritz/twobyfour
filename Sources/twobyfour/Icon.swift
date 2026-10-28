@@ -3,7 +3,7 @@ import AppKit
 /// The app icon: the end of a 2x4, growth rings and all, with a lumber
 /// grade stamp reading "2×4" on a dark rounded square.
 enum AppIcon {
-    static func image(pixels: Int) -> NSBitmapImageRep? {
+    static func image(pixels: Int, fullBleed: Bool = false) -> NSBitmapImageRep? {
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels,
                                          bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                                          colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
@@ -14,16 +14,24 @@ enum AppIcon {
         let cg = context.cgContext
         let s = CGFloat(pixels)
 
-        // Apple's grid: an 824/1024 rounded square centred on the canvas.
-        let tile = CGRect(x: 0, y: 0, width: s, height: s).insetBy(dx: s * 100 / 1024, dy: s * 100 / 1024)
-        let shape = CGPath(roundedRect: tile, cornerWidth: s * 185 / 1024, cornerHeight: s * 185 / 1024, transform: nil)
-        cg.saveGState()
-        cg.setShadow(offset: CGSize(width: 0, height: -s * 0.01), blur: s * 0.03,
-                     color: NSColor.black.withAlphaComponent(0.3).cgColor)
-        cg.addPath(shape)
-        cg.setFillColor(NSColor(srgbRed: 0.16, green: 0.18, blue: 0.21, alpha: 1).cgColor)
-        cg.fillPath()
-        cg.restoreGState()
+        // Apple's Mac grid: an 824/1024 rounded square centred on the canvas.
+        // iPhone icons fill the square; iOS rounds the corners itself.
+        let canvas = CGRect(x: 0, y: 0, width: s, height: s)
+        let tile = fullBleed ? canvas : canvas.insetBy(dx: s * 100 / 1024, dy: s * 100 / 1024)
+        let background = NSColor(srgbRed: 0.16, green: 0.18, blue: 0.21, alpha: 1).cgColor
+        if fullBleed {
+            cg.setFillColor(background)
+            cg.fill(canvas)
+        } else {
+            let shape = CGPath(roundedRect: tile, cornerWidth: s * 185 / 1024, cornerHeight: s * 185 / 1024, transform: nil)
+            cg.saveGState()
+            cg.setShadow(offset: CGSize(width: 0, height: -s * 0.01), blur: s * 0.03,
+                         color: NSColor.black.withAlphaComponent(0.3).cgColor)
+            cg.addPath(shape)
+            cg.setFillColor(background)
+            cg.fillPath()
+            cg.restoreGState()
+        }
 
         // The board's end: 3 1/2 wide by 1 1/2 tall, slightly rounded edges.
         let boardWidth = tile.width * 0.78
@@ -56,6 +64,24 @@ enum AppIcon {
         text.draw(at: CGPoint(x: board.midX - size.width / 2, y: board.midY - size.height / 2))
         context.flushGraphics()
         return rep
+    }
+
+    /// Writes the iPhone app's 1024-pixel icon: full bleed, and with no alpha
+    /// channel, which App Store Connect rejects. Used by `make ios-icon`.
+    static func writeIOSIcon(to file: URL) throws {
+        let pixels = 1024
+        guard let drawn = image(pixels: pixels, fullBleed: true)?.cgImage,
+              let flat = CGContext(data: nil, width: pixels, height: pixels, bitsPerComponent: 8, bytesPerRow: 0,
+                                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                   bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        flat.draw(drawn, in: CGRect(x: 0, y: 0, width: pixels, height: pixels))
+        guard let opaque = flat.makeImage(),
+              let png = NSBitmapImageRep(cgImage: opaque).representation(using: .png, properties: [:]) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        try png.write(to: file)
     }
 
     /// Writes an `.iconset` folder for `iconutil`. Used by scripts/bundle.sh.

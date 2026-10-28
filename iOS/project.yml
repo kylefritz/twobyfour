@@ -1,0 +1,65 @@
+# The iPhone app. XcodeGen turns this into twoByFour.xcodeproj, which isn't
+# committed: run `make ios-project` after changing this file or adding
+# source files.
+name: twoByFour
+options:
+  bundleIdPrefix: io.github.kylefritz
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+packages:
+  twobyfour:
+    path: ..
+settings:
+  base:
+    DEVELOPMENT_TEAM: 75W4LUJ7MW
+    SWIFT_VERSION: "5.0"
+    # CI sets these: the Mac's next patch version, the run number, the commit.
+    MARKETING_VERSION: "0.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TWOBYFOUR_COMMIT: ""
+targets:
+  twoByFour:
+    type: application
+    platform: iOS
+    sources: [twoByFour]
+    dependencies:
+      - package: twobyfour
+        product: TwoByFourKit
+    info:
+      path: build/Info.plist
+      properties:
+        CFBundleDisplayName: twoByFour
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        TwoByFourCommit: $(TWOBYFOUR_COMMIT)
+        ITSAppUsesNonExemptEncryption: false
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.kylefritz.twobyfour
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+  twoByFourTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [twoByFourTests]
+    dependencies:
+      - target: twoByFour
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.kylefritz.twobyfour.tests
+schemes:
+  twoByFour:
+    build:
+      targets:
+        twoByFour: all
+        twoByFourTests: [test]
+    test:
+      targets: [twoByFourTests]
