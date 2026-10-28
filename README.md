@@ -45,40 +45,32 @@ make ios-icon      # redraw the icon from the Mac app's drawing
 ```
 
 Every commit on `main` that passes CI goes to TestFlight
-(`.github/workflows/testflight.yml`, via `scripts/testflight.sh`), once these
-one-time steps are done on the Apple Developer account (team `75W4LUJ7MW`):
+(`.github/workflows/testflight.yml`, via `scripts/testflight.sh`). Signing is
+automatic: with an App Store Connect API key that has the **Admin** role,
+Xcode registers the bundle ID, fetches profiles and signs with Apple's
+cloud-managed distribution certificate, so no certificate or profile is kept
+anywhere. (An App Manager key can't use that certificate.) One-time steps on
+the developer account (team `75W4LUJ7MW`):
 
-1. **App ID.** developer.apple.com → Identifiers → + → App IDs → App:
-   bundle ID `io.github.kylefritz.twobyfour` (explicit), description twoByFour.
-2. **App record.** appstoreconnect.apple.com → Apps → + → New App: iOS, name
+1. **App record.** appstoreconnect.apple.com → Apps → + → New App: iOS, name
    twoByFour (any unused name works if it's taken; the home-screen name stays
-   twoByFour), that bundle ID, SKU `twobyfour`.
-3. **Distribution certificate.** Xcode → Settings → Accounts → Manage
-   Certificates → + → Apple Distribution. Then Keychain Access → My
-   Certificates → right-click "Apple Distribution: …" → Export as
-   `dist.p12` with a password.
-4. **Profile.** developer.apple.com → Profiles → + → App Store Connect, that
-   App ID, that certificate, named exactly `twoByFour App Store`. Download it.
-5. **API key.** App Store Connect → Users and Access → Integrations → App
-   Store Connect API → + with the **App Manager** role. Download the `.p8`
-   (only offered once); note the Key ID and Issuer ID.
-6. **GitHub secrets** (from files, never pasted into a chat):
+   twoByFour), bundle ID `com.kylefritz.twobyfour`, SKU `twobyfour`. If the
+   bundle ID isn't in the list yet, run one upload first; the archive
+   registers it. The API can't create app records, so uploads fail with
+   "Error Downloading App Information" until this exists.
+2. **Testers.** The app → TestFlight → Internal Testing → + to make a group
+   (e.g. "Me") with automatic distribution on, and add yourself. Without
+   this, uploads process but never reach a phone.
+3. **GitHub secrets** for CI, from the Admin key's files (never pasted into a
+   chat):
 
    ```sh
    gh secret set ASC_KEY_ID --body "<key id>"
    gh secret set ASC_ISSUER_ID --body "<issuer id>"
    base64 -i AuthKey_XXXX.p8 | gh secret set ASC_KEY_P8
-   base64 -i dist.p12 | gh secret set IOS_DIST_CERT_P12
-   gh secret set IOS_DIST_CERT_PASSWORD   # prompts
-   base64 -i twoByFour_App_Store.mobileprovision | gh secret set IOS_PROFILE
    ```
-
-7. **Testers.** App Store Connect → the app → TestFlight → Internal Testing →
-   + to make a group (e.g. "Me") with automatic distribution on, and add
-   yourself. Without this, uploads process but never reach a phone.
 
 Then install TestFlight on the phone and sign in with that Apple ID; each new
 build shows up there. A re-run of the same workflow run reuses its build
 number, which App Store Connect rejects; push a new commit instead. To upload
-by hand instead, with the certificate and profile
-installed: `ASC_KEY_PATH=… ASC_KEY_ID=… ASC_ISSUER_ID=… scripts/testflight.sh 0.0.1 1`.
+by hand: `ASC_KEY_PATH=… ASC_KEY_ID=… ASC_ISSUER_ID=… scripts/testflight.sh 0.0.1 1`.
