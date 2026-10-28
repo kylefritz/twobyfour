@@ -55,11 +55,23 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: io.github.kylefritz.twobyfour.tests
+  twoByFourUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [twoByFourUITests]
+    dependencies:
+      - target: twoByFour
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.kylefritz.twobyfour.uitests
+        TEST_TARGET_NAME: twoByFour
 schemes:
   twoByFour:
     build:
       targets:
         twoByFour: all
         twoByFourTests: [test]
+        twoByFourUITests: [test]
     test:
-      targets: [twoByFourTests]
+      targets: [twoByFourTests, twoByFourUITests]

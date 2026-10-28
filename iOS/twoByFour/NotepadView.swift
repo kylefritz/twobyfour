@@ -146,6 +146,7 @@ final class NotepadTextView: UITextView {
         }
         column.lineRects = tops
         column.setNeedsDisplay()
+        column.updateAccessibility()
         // UITextView adds views of its own as it lays out; stay above them.
         if subviews.last !== column { bringSubviewToFront(column) }
     }
@@ -265,6 +266,19 @@ final class ResultsColumnView: UIView {
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         // Only answers take taps; everywhere else goes to the text.
         rows.contains { hitRect($0)?.contains(point) == true }
+    }
+
+    /// One element per answer, so VoiceOver (and UI tests) can read them.
+    func updateAccessibility() {
+        accessibilityElements = rows.compactMap { row -> UIAccessibilityElement? in
+            guard let label = row.display.label, let line = lineRects[row.line] else { return nil }
+            let element = UIAccessibilityElement(accessibilityContainer: self)
+            element.accessibilityLabel = label
+            element.accessibilityIdentifier = "answer-\(row.line + 1)"
+            element.accessibilityFrameInContainerSpace = line
+            if case .result = row.display { element.accessibilityTraits = .button }
+            return element
+        }
     }
 
     @objc private func tapped(_ gesture: UITapGestureRecognizer) {

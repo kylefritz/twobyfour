@@ -24,7 +24,9 @@ struct TwoByFourApp: App {
 /// launches, so the app opens where it was left.
 @MainActor
 final class AppModel: ObservableObject {
-    let store = SheetStore(directory: SheetStore.defaultDirectory)
+    /// UI tests point `TWOBYFOUR_SHEETS_DIR` at a scratch folder.
+    let store = SheetStore(directory: ProcessInfo.processInfo.environment["TWOBYFOUR_SHEETS_DIR"]
+        .map { URL(fileURLWithPath: $0) } ?? SheetStore.defaultDirectory)
     @Published var selection: UUID? {
         didSet { UserDefaults.standard.set(selection?.uuidString, forKey: "lastSheet") }
     }
@@ -39,14 +41,43 @@ final class AppModel: ObservableObject {
         selection = store.create().id
     }
 
+    /// Deletes `sheet`; there's always at least one sheet to show.
+    func delete(_ sheet: Sheet) {
+        Log.shared.write("deleted sheet \"\(sheet.name)\"")
+        store.delete(id: sheet.id)
+        if store.sheets.isEmpty { store.create(name: "Scratch") }
+        if selection == sheet.id || !store.sheets.contains(where: { $0.id == selection }) {
+            selection = store.sheets.first?.id
+        }
+    }
+
     var openSheet: Sheet? {
         store.sheets.first { $0.id == selection }
+    }
+
+    /// This build, from Info.plist: CI sets the version, build number and commit.
+    let build: LogSender.Build = {
+        let info = Bundle.main.infoDictionary ?? [:]
+        let version = info["CFBundleShortVersionString"] as? String ?? "?"
+        let number = info["CFBundleVersion"] as? String ?? "?"
+        return LogSender.Build(version: "\(version) (\(number))", commit: info["TwoByFourCommit"] as? String ?? "",
+                               channel: "testflight")
+    }()
+
+    /// The build, the open sheet with its answers, and the end of the log.
+    func debugReport() -> String {
+        Diagnostics.report(version: build.version, commit: build.commit, preview: "", sheet: openSheet,
+                           log: Log.shared.tail(300))
     }
 }
 
 struct ContentView: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var store: SheetStore
+    @State private var showingSheets = false
+    @State private var sendingLogs = false
+    @State private var renaming: Sheet?
+    @State private var newName = ""
 
     init(model: AppModel) {
         self.model = model
@@ -58,7 +89,43 @@ struct ContentView: View {
             if let sheet = model.openSheet {
                 SheetScreen(store: store, sheet: sheet)
                     .id(sheet.id)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button { showingSheets = true } label: { Label("Sheets", systemImage: "list.bullet") }
+                        }
+                        ToolbarItem(placement: .topBarTrailing) { menu(for: sheet) }
+                    }
             }
+        }
+        .sheet(isPresented: $showingSheets) { SheetsView(model: model, store: store) }
+        .sheet(isPresented: $sendingLogs) { SendLogsView(report: model.debugReport, build: model.build) }
+        .renameAlert(sheet: $renaming, name: $newName, store: store)
+    }
+
+    private func menu(for sheet: Sheet) -> some View {
+        Menu {
+            Picker("Round to", selection: Binding(get: { sheet.precision }, set: { precision in
+                Log.shared.write("sheet \"\(sheet.name)\" now rounds to \(precision.label)")
+                // Read it fresh: typing may have saved since this menu was built.
+                guard var edited = store.sheets.first(where: { $0.id == sheet.id }) else { return }
+                edited.precision = precision
+                store.update(edited)
+            })) {
+                ForEach(Precision.allCases, id: \.self) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.menu)
+            Button("Rename…", systemImage: "pencil") {
+                newName = sheet.name
+                renaming = sheet
+            }
+            Divider()
+            Button("Send Logs…", systemImage: "paperplane") { sendingLogs = true }
+            Button("Copy Debug Report", systemImage: "doc.on.clipboard") {
+                Log.shared.write("copied a debug report")
+                UIPasteboard.general.string = model.debugReport()
+            }
+        } label: {
+            Label("More", systemImage: "ellipsis.circle")
         }
     }
 }
