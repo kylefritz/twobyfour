@@ -1,0 +1,17 @@
+#!/bin/bash
+# Prints the id of an available iPhone simulator on the newest iOS runtime
+# installed. `simctl list` puts older runtimes first, and the app needs
+# iOS 26 or later, so the first iPhone listed isn't good enough.
+set -euo pipefail
+
+xcrun simctl list devices available -j | jq -r '
+  .devices
+  | to_entries
+  | map(select(.key | test("SimRuntime\\.iOS-")))
+  | map(.version = (.key | capture("iOS-(?<maj>[0-9]+)-(?<min>[0-9]+)") | [(.maj | tonumber), (.min | tonumber)]))
+  | map(select(.version[0] >= 26))
+  | map(.value |= map(select(.name | startswith("iPhone"))))
+  | map(select(.value | length > 0))
+  | sort_by(.version)
+  | last
+  | .value[0].udid // empty'

@@ -1,5 +1,7 @@
 import Foundation
+#if os(macOS)
 import SystemConfiguration
+#endif
 
 /// Who is sending logs and from what, so reports can be told apart.
 public struct Identity: Equatable, Sendable {
@@ -8,22 +10,30 @@ public struct Identity: Equatable, Sendable {
     public let computer: String
     public let platform: String
     public let osVersion: String
-    /// The hardware model, e.g. `Mac16,7`.
+    /// The hardware model, e.g. `Mac16,7` or `iPhone17,1`.
     public let model: String
 
     public static func current() -> Identity {
         let os = ProcessInfo.processInfo.operatingSystemVersion
+        let version = "\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)"
+        #if os(macOS)
         return Identity(username: NSUserName(), fullName: NSFullUserName(),
                         computer: SCDynamicStoreCopyComputerName(nil, nil) as String? ?? ProcessInfo.processInfo.hostName,
-                        platform: "macOS", osVersion: "\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)",
-                        model: hardwareModel())
+                        platform: "macOS", osVersion: version, model: sysctl("hw.model"))
+        #else
+        // iOS keeps the owner's name and the device's name to itself.
+        let simulated = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"]
+        return Identity(username: "", fullName: "", computer: "", platform: "iOS", osVersion: version,
+                        model: simulated ?? sysctl("hw.machine"))
+        #endif
     }
 
-    private static func hardwareModel() -> String {
+    /// `hw.model` names a Mac; on iPhone it's the logic board, so `hw.machine`.
+    private static func sysctl(_ name: String) -> String {
         var size = 0
-        sysctlbyname("hw.model", nil, &size, nil, 0)
+        sysctlbyname(name, nil, &size, nil, 0)
         var bytes = [CChar](repeating: 0, count: max(size, 1))
-        guard sysctlbyname("hw.model", &bytes, &size, nil, 0) == 0 else { return "unknown" }
+        guard sysctlbyname(name, &bytes, &size, nil, 0) == 0 else { return "unknown" }
         return String(cString: bytes)
     }
 }

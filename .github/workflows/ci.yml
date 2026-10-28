@@ -24,6 +24,24 @@ jobs:
           build/twoByFour.app/Contents/MacOS/twobyfour --snapshot-notepad build/notepad.png
           test -s build/notepad.png
 
+  ios:
+    name: Build and test (iOS)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+      - name: Pick a simulator
+        run: |
+          id=$(scripts/pick-simulator)
+          test -n "$id"
+          xcrun simctl list devices | grep "$id"
+          echo "IOS_DEST=platform=iOS Simulator,id=$id" >> "$GITHUB_ENV"
+      - name: Test (unit and UI tests in the simulator)
+        run: make ios-test IOS_DEST="$IOS_DEST"
+
   server:
     name: Server tests
     runs-on: ubuntu-latest

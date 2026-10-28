@@ -1,23 +1,10 @@
+#if os(macOS)
 import Combine
 import Foundation
 
 // Ported from fwd's Updater (github.com/kylefritz/fwd), without Homebrew
-// installs or the install-count ping.
-
-/// Names this app goes by on GitHub and on disk.
-public enum AppInfo {
-    public static let repository = "kylefritz/twobyfour"
-    public static let bundleIdentifier = "io.github.kylefritz.twobyfour"
-    /// GitHub's latest release, which skips prereleases.
-    public static let latestReleaseURL = URL(string: "https://api.github.com/repos/\(repository)/releases/latest")!
-    /// Recent releases of every kind, for the beta channel.
-    public static let releasesListURL = URL(string: "https://api.github.com/repos/\(repository)/releases?per_page=30")!
-    /// `~/Library/Logs/twoByFour/twoByFour.log`.
-    public static var logFile: URL {
-        FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Logs/twoByFour/twoByFour.log")
-    }
-}
+// installs or the install-count ping. Mac only: the iPhone app updates
+// through TestFlight and the App Store.
 
 /// A response other than 200 from GitHub. A 404 from /releases/latest
 /// means there's no stable release yet, only betas.
@@ -455,3 +442,4 @@ public final class Updater: ObservableObject {
         try? fm.removeItem(at: backup)
     }
 }
+#endif

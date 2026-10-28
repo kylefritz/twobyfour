@@ -18,6 +18,16 @@ struct TwoByFourApp: App {
                 exit(1)
             }
         }
+        // `twobyfour --write-ios-icon <png>` draws the iPhone app's icon and exits.
+        if let flag = CommandLine.arguments.firstIndex(of: "--write-ios-icon"), flag + 1 < CommandLine.arguments.count {
+            do {
+                try AppIcon.writeIOSIcon(to: URL(fileURLWithPath: CommandLine.arguments[flag + 1]))
+                exit(0)
+            } catch {
+                FileHandle.standardError.write(Data("couldn't write the iPhone icon: \(error)\n".utf8))
+                exit(1)
+            }
+        }
         if let flag = CommandLine.arguments.firstIndex(of: "--snapshot-notepad"), flag + 1 < CommandLine.arguments.count {
             do {
                 try Snapshot.notepad(to: URL(fileURLWithPath: CommandLine.arguments[flag + 1]),
