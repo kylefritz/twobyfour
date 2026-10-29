@@ -17,7 +17,7 @@ private func show(_ line: String, _ precision: Precision = .sixteenth) throws ->
 @Suite struct FormatterTests {
     @Test func oneHundredFiveInches() throws {
         let result = try show("105\"")
-        #expect(result.primary == exact("8' 9\""))
+        #expect(result.primary == exact("8' 9\" (105\")"))
         #expect(result.alternates.contains(exact("105\"")))
         #expect(result.alternates.contains(exact("2.667 m")))
         #expect(result.alternates.contains(exact("266.7 cm")))
@@ -26,21 +26,21 @@ private func show(_ line: String, _ precision: Precision = .sixteenth) throws ->
     }
 
     @Test func metricRoundsToTheChosenFraction() throws {
-        #expect(try show("1220 mm", .thirtySecond).primary == approx("4' 0 1/32\""))
-        #expect(try show("1220 mm", .sixteenth).primary == approx("4' 0 1/16\""))
+        #expect(try show("1220 mm", .thirtySecond).primary == approx("4' 0 1/32\" (48 1/32\")"))
+        #expect(try show("1220 mm", .sixteenth).primary == approx("4' 0 1/16\" (48 1/16\")"))
     }
 
     @Test func tenFeetInThreesIsExact() throws {
-        #expect(try show("10' / 3").primary == exact("3' 4\""))
+        #expect(try show("10' / 3").primary == exact("3' 4\" (40\")"))
     }
 
     @Test func roundingCarriesIntoTheNextFoot() throws {
-        #expect(try show("11' 11 31/32\"").primary == approx("12' 0\""))
+        #expect(try show("11' 11 31/32\"").primary == approx("12' 0\" (144\")"))
     }
 
     @Test func negativesRoundAwayFromZero() throws {
         #expect(try show("-3/32\"").primary == approx("-1/8\""))
-        #expect(try show("-14\"").primary == exact("-1' 2\""))
+        #expect(try show("-14\"").primary == exact("-1' 2\" (-14\")"))
     }
 
     @Test func underAFootShowsInchesOnly() throws {
@@ -50,8 +50,8 @@ private func show(_ line: String, _ precision: Precision = .sixteenth) throws ->
     }
 
     @Test func askingForAUnitShowsThatUnit() throws {
-        #expect(try show("1220 mm in ft", .thirtySecond).primary == approx("4' 0 1/32\""))
-        #expect(try show("4' in in").primary == exact("48\""))
+        #expect(try show("1220 mm in ft", .thirtySecond).primary == approx("4' 0 1/32\" (48 1/32\")"))
+        #expect(try show("4' in in").primary == exact("48\" (4' 0\")"))
         #expect(try show("105\" in m").primary == exact("2.667 m"))
         #expect(try show("1\" in mm").primary == exact("25.4 mm"))
     }

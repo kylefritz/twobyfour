@@ -15,6 +15,8 @@ public enum EngineError: Error, Equatable, Sendable {
     case unknownTerm(String)
     /// A board name the engine doesn't know yet.
     case unknownSize(String)
+    /// `2^0.5` or `2^1'`: only whole-number powers.
+    case fractionalPower
 
     public var message: String {
         switch self {
@@ -27,6 +29,7 @@ public enum EngineError: Error, Equatable, Sendable {
         case .reservedName(let name): return "\(name) is a unit"
         case .unknownTerm(let word): return "Unknown: \(word)"
         case .unknownSize(let name): return "Unknown size: \(name)"
+        case .fractionalPower: return "Powers must be whole numbers"
         }
     }
 }

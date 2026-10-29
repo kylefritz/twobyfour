@@ -32,7 +32,10 @@ final class AppModel: ObservableObject {
     }
 
     init() {
-        if store.sheets.isEmpty { store.create(name: "Scratch") }
+        // UI tests set `TWOBYFOUR_NO_GUIDE` to start on an empty sheet.
+        if store.sheets.isEmpty {
+            store.createFirstSheet(guide: ProcessInfo.processInfo.environment["TWOBYFOUR_NO_GUIDE"] == nil)
+        }
         let last = UserDefaults.standard.string(forKey: "lastSheet").flatMap(UUID.init(uuidString:))
         selection = store.sheets.contains { $0.id == last } ? last : store.sheets.first?.id
     }
@@ -41,11 +44,17 @@ final class AppModel: ObservableObject {
         selection = store.create().id
     }
 
+    /// Opens a fresh copy of the guide.
+    func openGuide() {
+        selection = store.createFirstSheet(guide: true).id
+        Log.shared.write("opened the guide")
+    }
+
     /// Deletes `sheet`; there's always at least one sheet to show.
     func delete(_ sheet: Sheet) {
         Log.shared.write("deleted sheet \"\(sheet.name)\"")
         store.delete(id: sheet.id)
-        if store.sheets.isEmpty { store.create(name: "Scratch") }
+        if store.sheets.isEmpty { store.createFirstSheet(guide: false) }
         if selection == sheet.id || !store.sheets.contains(where: { $0.id == selection }) {
             selection = store.sheets.first?.id
         }
@@ -119,6 +128,7 @@ struct ContentView: View {
                 renaming = sheet
             }
             Divider()
+            Button("Getting Started", systemImage: "questionmark.circle") { model.openGuide() }
             Button("Send Logs…", systemImage: "paperplane") { sendingLogs = true }
             Button("Copy Debug Report", systemImage: "doc.on.clipboard") {
                 Log.shared.write("copied a debug report")

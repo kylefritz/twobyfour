@@ -158,9 +158,15 @@ final class ResultsColumnView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         for row in rows {
-            guard let label = row.display.label, let rect = lineRects[row.line] else { continue }
-            attributed(row, label).draw(in: rect)
+            guard let text = shown(row), let rect = lineRects[row.line] else { continue }
+            attributed(row, text).draw(in: rect)
         }
+    }
+
+    /// The answer, or its shorter form when the whole one won't fit.
+    private func shown(_ row: ResultRow) -> String? {
+        guard let label = row.display.label, let rect = lineRects[row.line] else { return row.display.label }
+        return attributed(row, label).size().width <= rect.width ? label : row.display.compactLabel
     }
 
     private func attributed(_ row: ResultRow, _ text: String) -> NSAttributedString {
@@ -178,7 +184,7 @@ final class ResultsColumnView: NSView {
 
     /// The drawn answer's own area, right-aligned in its line.
     private func hitRect(_ row: ResultRow) -> NSRect? {
-        guard case .result = row.display, let text = row.display.label, let rect = lineRects[row.line] else { return nil }
+        guard case .result = row.display, let text = shown(row), let rect = lineRects[row.line] else { return nil }
         let width = min(rect.width, attributed(row, text).size().width)
         return NSRect(x: rect.maxX - width, y: rect.minY, width: width, height: rect.height)
     }

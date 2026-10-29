@@ -24,12 +24,15 @@ public struct FormattedValue: Equatable, Sendable {
 public struct FormattedResult: Equatable, Sendable {
     public let primary: FormattedValue
     public let alternates: [FormattedValue]
+    /// `primary` without extras, for when it doesn't fit: `7' 4"` for `7' 4" (88")`.
+    public let compact: FormattedValue
 }
 
 public enum ResultFormatter {
     public static func format(_ q: Quantity, precision: Precision) throws -> FormattedResult {
         var forms: [FormattedValue]
         var primary: FormattedValue
+        var compact: FormattedValue?
         switch q.dimension {
         case .length:
             forms = [try feetInches(q.value, precision: precision),
@@ -37,9 +40,21 @@ public enum ResultFormatter {
                      try decimal(q.value, unit: "m"),
                      try decimal(q.value, unit: "cm"),
                      try decimal(q.value, unit: "mm")]
+            // Feet and inches also say the total, and inches say the feet:
+            // `7' 4" (88")`, `48" (4' 0")`. Under a foot the two are the same,
+            // so it's just `9 1/2"`.
+            let (feet, inches) = (forms[0], forms[1])
+            func both(_ first: FormattedValue, _ second: FormattedValue) -> FormattedValue {
+                feet.text == inches.text ? first
+                    : FormattedValue(text: "\(first.text) (\(second.text))", isExact: first.isExact)
+            }
             switch q.displayUnit?.symbol {
-            case nil, "ft"?: primary = forms[0]
-            case "in"?: primary = forms[1]
+            case nil, "ft"?:
+                primary = both(feet, inches)
+                compact = feet
+            case "in"?:
+                primary = both(inches, feet)
+                compact = inches
             case let symbol?: primary = try decimal(q.value, unit: symbol)
             }
         case .area:
@@ -64,7 +79,7 @@ public enum ResultFormatter {
         }
         var seen: Set<String> = [primary.text]
         let alternates = forms.filter { seen.insert($0.text).inserted }
-        return FormattedResult(primary: primary, alternates: alternates)
+        return FormattedResult(primary: primary, alternates: alternates, compact: compact ?? primary)
     }
 
     private static func decimals(_ q: Quantity, default symbol: String, others: [String]) throws

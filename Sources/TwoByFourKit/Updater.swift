@@ -260,6 +260,10 @@ public final class Updater: ObservableObject {
                 }
                 await prepare(release, version: latest, fallback: before, token: token)
             }
+        } catch let error as HTTPStatusError where error.status == 404 && !beta {
+            guard token == generation else { return }
+            log.write("update check: no stable release yet")
+            if case .ready = before { state = before } else { state = .upToDate }
         } catch {
             log.write("update check failed: \(error.localizedDescription)")
             state = (before == .checking) ? .idle : before

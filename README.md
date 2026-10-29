@@ -29,7 +29,7 @@ make install
 scripts/release.sh 0.1.0   # tag a release; GitHub Actions builds it
 ```
 
-See `docs/superpowers/specs/` for the design.
+See [`docs/SPEC.md`](docs/SPEC.md) for everything it understands, with examples.
 
 ## iPhone app
 

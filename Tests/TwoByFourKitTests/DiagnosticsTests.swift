@@ -9,16 +9,16 @@ import Testing
         let old = "105\"\nwall = 12'\nwall - 3\""
         let new = "105\"\nwall = 12' 6\"\nwall - 3\"\n\n5' + 3 lb"
         #expect(Diagnostics.changes(from: old, to: new, precision: .sixteenth) == [
-            "line 2: wall = 12' 6\" → 12' 6\"",
+            "line 2: wall = 12' 6\" → 12' 6\" (150\")",
             // Unchanged text, but its answer moved with `wall`.
-            "line 3: wall - 3\" → 12' 3\"",
+            "line 3: wall - 3\" → 12' 3\" (147\")",
             "line 5: 5' + 3 lb → error: Can't add length and weight",
         ])
     }
 
     @Test func roundedAnswersAreLoggedWithTheirMark() {
         #expect(Diagnostics.changes(from: "", to: "1220 mm", precision: .thirtySecond)
-            == ["line 1: 1220 mm → ≈ 4' 0 1/32\""])
+            == ["line 1: 1220 mm → ≈ 4' 0 1/32\" (48 1/32\")"])
     }
 
     @Test func tailReadsTheLastLinesAcrossARollover() {
