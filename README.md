@@ -42,6 +42,7 @@ isn't committed. Needs Xcode and `brew install xcodegen`.
 make ios-project   # generate iOS/twoByFour.xcodeproj (open it to run on a phone)
 make ios-test      # unit and UI tests in the simulator (IOS_SIM="iPhone 17" by default)
 make ios-icon      # redraw the icon from the Mac app's drawing
+make testflight    # upload the next build to TestFlight
 ```
 
 Every commit on `main` that passes CI goes to TestFlight
@@ -71,6 +72,7 @@ the developer account (team `75W4LUJ7MW`):
    ```
 
 Then install TestFlight on the phone and sign in with that Apple ID; each new
-build shows up there. A re-run of the same workflow run reuses its build
-number, which App Store Connect rejects; push a new commit instead. To upload
-by hand: `ASC_KEY_PATH=… ASC_KEY_ID=… ASC_ISSUER_ID=… scripts/testflight.sh 0.0.1 1`.
+build shows up there. To upload by hand, run `make testflight`: it picks the
+next version and asks App Store Connect for the next build number, and reads
+the key from `~/.appstoreconnect/` (or `ASC_KEY_PATH`, `ASC_KEY_ID`,
+`ASC_ISSUER_ID`). `scripts/testflight.sh 0.2.0` sets the version instead.
