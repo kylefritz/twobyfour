@@ -1,0 +1,75 @@
+#!/bin/bash
+# Draws the screenshots a pull request needs, light and dark, on the Mac and
+# in the iPhone simulator:
+#
+#   scripts/screenshots [--sheet <text file>] [--mac | --iphone] [out dir]
+#
+# Writes mac-dark.png, mac-light.png, iphone-light.png and iphone-dark.png to
+# the out dir (build/screenshots). With --sheet, every shot shows that text;
+# without it the Mac draws its sample sheet and the iPhone opens on Getting
+# Started. Upload them with attach-screenshot (CLAUDE.md, "Pull requests need
+# screenshots"). IOS_SIM picks the simulator (iPhone 17).
+set -euo pipefail
+
+sheet=""
+out=build/screenshots
+mac=1
+iphone=1
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --sheet) sheet="$(realpath "$2")"; shift 2 ;;
+    --mac) iphone=0; shift ;;
+    --iphone) mac=0; shift ;;
+    *) out="$1"; shift ;;
+  esac
+done
+mkdir -p "$out"
+out="$(realpath "$out")"
+cd "$(dirname "$0")/.."
+
+if [ "$mac" = 1 ]; then
+  swift build --product twobyfour -c debug >&2
+  for look in dark light; do
+    args=(--snapshot-notepad "$out/mac-$look.png")
+    [ -n "$sheet" ] && args+=(--sheet "$sheet")
+    [ "$look" = light ] && args+=(--light)
+    .build/debug/twobyfour "${args[@]}"
+    echo "$out/mac-$look.png"
+  done
+fi
+
+if [ "$iphone" = 1 ]; then
+  # After an Xcode update, simctl first installs new simulator parts, which
+  # needs an admin password; without a terminal it hangs instead of asking.
+  if ! xcodebuild -checkFirstLaunchStatus; then
+    echo "Xcode needs its first-launch setup. Run: sudo xcodebuild -runFirstLaunch" >&2
+    exit 1
+  fi
+  name="${IOS_SIM:-iPhone 17}"
+  udid="$(xcrun simctl list devices available -j |
+    jq -r --arg name "$name" '[.devices[][] | select(.name == $name)] | .[0].udid // empty')"
+  [ -n "$udid" ] || udid="$(scripts/pick-simulator)"
+  xcrun simctl bootstatus "$udid" -b >&2
+  make ios-build >&2
+  xcrun simctl install "$udid" build/ios/Build/Products/Debug-iphonesimulator/twoByFour.app
+  # The same clean status bar on every shot.
+  xcrun simctl status_bar "$udid" override --time 9:41 --batteryState charged --batteryLevel 100 \
+    --wifiBars 3 --cellularBars 4
+  for look in light dark; do
+    # A fresh sheets folder each time: empty opens on Getting Started.
+    sheets="$(mktemp -d)"
+    if [ -n "$sheet" ]; then
+      id="$(uuidgen)"
+      jq -n --arg id "$id" --rawfile text "$sheet" \
+        '{id: $id, name: "Screenshot", text: $text, precision: 16, modified: (now | todate)}' > "$sheets/$id.json"
+    fi
+    xcrun simctl ui "$udid" appearance "$look"
+    SIMCTL_CHILD_TWOBYFOUR_SHEETS_DIR="$sheets" \
+      xcrun simctl launch --terminate-running-process "$udid" com.kylefritz.twobyfour >/dev/null
+    sleep 4
+    xcrun simctl io "$udid" screenshot "$out/iphone-$look.png" >/dev/null 2>&1
+    echo "$out/iphone-$look.png"
+  done
+  xcrun simctl ui "$udid" appearance light
+  xcrun simctl status_bar "$udid" clear
+fi

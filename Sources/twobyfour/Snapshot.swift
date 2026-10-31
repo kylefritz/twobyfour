@@ -1,8 +1,9 @@
 import AppKit
 import TwoByFourKit
 
-/// Development aid: `twobyfour --snapshot-notepad <file.png> [--light]` draws
-/// a sample sheet offscreen and exits. For checking the layout on a machine
+/// Development aid: `twobyfour --snapshot-notepad <file.png> [--sheet <text file>] [--light]`
+/// draws a sheet offscreen and exits: the given text, or a sample. For PR
+/// screenshots (`scripts/screenshots`), for checking the layout on a machine
 /// with no one at the screen, and for README images.
 enum Snapshot {
     static let sample = """
@@ -17,16 +18,23 @@ enum Snapshot {
     5' + 3 lb
     """
 
-    static func notepad(to file: URL, light: Bool) throws {
+    static func notepad(to file: URL, text: String = sample, light: Bool) throws {
         _ = NSApplication.shared
-        let size = NSSize(width: 760, height: 300)
+        let width: CGFloat = 760
         let textView = NotepadTextView.make()
         textView.appearance = NSAppearance(named: light ? .aqua : .darkAqua)
         textView.precision = .thirtySecond
-        textView.frame = NSRect(origin: .zero, size: size)
-        textView.string = sample
+        textView.frame = NSRect(x: 0, y: 0, width: width, height: 300)
+        textView.string = text
         textView.refreshRows()
-        textView.layoutManager?.ensureLayout(for: textView.textContainer!)
+        // Grow to fit the sheet, so a long one isn't cut off.
+        let container = textView.textContainer!
+        textView.layoutManager?.ensureLayout(for: container)
+        let used = textView.layoutManager?.usedRect(for: container).height ?? 0
+        let height = max(300, ceil(used + 2 * textView.textContainerInset.height + 16))
+        textView.frame.size = NSSize(width: width, height: height)
+        textView.refreshRows()
+        textView.layoutManager?.ensureLayout(for: container)
         guard let rep = textView.bitmapImageRepForCachingDisplay(in: textView.bounds) else {
             throw CocoaError(.fileWriteUnknown)
         }
