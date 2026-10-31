@@ -30,7 +30,11 @@ struct TwoByFourApp: App {
         }
         if let flag = CommandLine.arguments.firstIndex(of: "--snapshot-notepad"), flag + 1 < CommandLine.arguments.count {
             do {
-                try Snapshot.notepad(to: URL(fileURLWithPath: CommandLine.arguments[flag + 1]),
+                var text = Snapshot.sample
+                if let sheet = CommandLine.arguments.firstIndex(of: "--sheet"), sheet + 1 < CommandLine.arguments.count {
+                    text = try String(contentsOfFile: CommandLine.arguments[sheet + 1], encoding: .utf8)
+                }
+                try Snapshot.notepad(to: URL(fileURLWithPath: CommandLine.arguments[flag + 1]), text: text,
                                      light: CommandLine.arguments.contains("--light"))
                 exit(0)
             } catch {
