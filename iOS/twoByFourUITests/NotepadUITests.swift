@@ -11,6 +11,7 @@ final class NotepadUITests: XCTestCase {
         sheetsDir = (NSTemporaryDirectory() as NSString).appendingPathComponent(UUID().uuidString)
         app = XCUIApplication()
         app.launchEnvironment["TWOBYFOUR_SHEETS_DIR"] = sheetsDir
+        app.launchEnvironment["TWOBYFOUR_NO_GUIDE"] = "1"
         app.launch()
     }
 
@@ -27,7 +28,7 @@ final class NotepadUITests: XCTestCase {
         press("4", "7", "space", "3", "fraction slash", "1", "6", "inches",
               "minus", "1", "fraction slash", "8", "inches")
         XCTAssertEqual(notepad.value as? String, "47 3/16\" − 1/8\"")
-        XCTAssertEqual(answer(1).label, "3' 11 1/16\"")
+        XCTAssertEqual(answer(1).label, "3' 11 1/16\" (47 1/16\")")
 
         answer(1).tap()
         XCTAssertTrue(app.navigationBars["Other units"].waitForExistence(timeout: 5))
@@ -36,7 +37,7 @@ final class NotepadUITests: XCTestCase {
     func testLettersKeyboardAndBack() {
         press("1", "2", "2", "0", "space", "letters")
         notepad.typeText("mm")
-        XCTAssertEqual(answer(1).label, "≈ 4' 0 1/16\"")
+        XCTAssertEqual(answer(1).label, "≈ 4' 0 1/16\" (48 1/16\")")
         press("back to the keypad")
         XCTAssertTrue(app.buttons["fraction slash"].waitForExistence(timeout: 5))
     }
@@ -54,11 +55,11 @@ final class NotepadUITests: XCTestCase {
 
         press("1", "2", "2", "0", "space", "letters")
         notepad.typeText("mm")
-        XCTAssertEqual(answer(1).label, "≈ 4' 0 1/16\"")
+        XCTAssertEqual(answer(1).label, "≈ 4' 0 1/16\" (48 1/16\")")
         press("More")
         app.buttons["Round to"].tap()
         app.buttons["1/32\""].tap()
-        XCTAssertTrue(answer(1).waitForLabel("≈ 4' 0 1/32\""))
+        XCTAssertTrue(answer(1).waitForLabel("≈ 4' 0 1/32\" (48 1/32\")"))
 
         press("Sheets")
         let row = app.buttons.containing(.staticText, identifier: "Deck").firstMatch
@@ -72,7 +73,7 @@ final class NotepadUITests: XCTestCase {
 
     func testTextSurvivesRelaunch() {
         press("1", "0", "5", "inches")
-        XCTAssertEqual(answer(1).label, "8' 9\"")
+        XCTAssertEqual(answer(1).label, "8' 9\" (105\")")
         sleep(2)  // typing saves half a second after the last key
         app.terminate()
         app.launch()

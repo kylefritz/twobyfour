@@ -68,6 +68,8 @@ struct TwoByFourApp: App {
                 Button("Try a Build…") { state.tryingBuild = true }
             }
             CommandGroup(replacing: .help) {
+                Button("Getting Started") { state.openGuide() }
+                Divider()
                 Button("Send Logs…") { state.sendingLogs = true }
                 Button("Copy Debug Report") { state.copyDebugReport(updates: delegate.updates) }
                 Button("Show Log in Finder") {
@@ -87,13 +89,19 @@ final class AppState: ObservableObject {
     @Published var sendingLogs = false
 
     init() {
-        if store.sheets.isEmpty { store.create(name: "Scratch") }
+        if store.sheets.isEmpty { store.createFirstSheet(guide: true) }
         selection = store.sheets.first?.id
     }
 
     func newSheet() {
         selection = store.create().id
         Log.shared.write("new sheet")
+    }
+
+    /// Opens a fresh copy of the guide.
+    func openGuide() {
+        selection = store.createFirstSheet(guide: true).id
+        Log.shared.write("opened the guide")
     }
 
     /// Puts the build, the open sheet with its answers and the end of the

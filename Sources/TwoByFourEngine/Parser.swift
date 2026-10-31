@@ -10,6 +10,8 @@ public indirect enum Expr: Equatable, Sendable {
     case nominal(String)
     case negate(Expr)
     case binary(Op, Expr, Expr)
+    /// The base to a whole-number power: `deck^2`.
+    case power(Expr, Expr)
     /// Show the expression in the unit with this symbol.
     case convert(Expr, String)
 }
@@ -21,8 +23,9 @@ public enum Statement: Equatable, Sendable {
 
 /// Turns one line's tokens into a statement. Lowest to highest precedence:
 /// conversion (`in`/`to`/`as` + unit), `+ -`, `* /` (and a spaced `x`),
-/// unary minus, then numbers with units, where lengths written side by side
-/// largest first (`8' 9"`) are added.
+/// unary minus, `^`, then numbers with units, where lengths written side by
+/// side largest first (`8' 9"`) are added. A variable's name can be several
+/// words: `king stud = 8' 9"`.
 public func parse(_ tokens: [Token]) throws -> Statement {
     var parser = Parser(tokens: tokens)
     return try parser.statement()
@@ -42,19 +45,31 @@ private struct Parser {
         return t
     }
 
+    /// Words that are operators between names, never part of one.
+    static let operatorWords: Set<String> = ["x", "to", "as"]
+
     mutating func statement() throws -> Statement {
-        if peek(1) == .equals {
-            switch peek() {
-            case .ident(let name)?:
-                i += 2
-                return .assignment(name, try wholeExpression())
-            case .unit(let symbol)?:
-                throw EngineError.reservedName(symbol)
-            default:
-                break
-            }
+        var words = 0
+        while case .ident(let word)? = peek(words), words == 0 || !Self.operatorWords.contains(word) { words += 1 }
+        if words > 0, peek(words) == .equals {
+            let name = tokens[0..<words].map(\.text).joined(separator: " ")
+            i = words + 1
+            return .assignment(name, try wholeExpression())
+        }
+        if peek(1) == .equals, case .unit(let symbol)? = peek() {
+            throw EngineError.reservedName(symbol)
         }
         return .expression(try wholeExpression())
+    }
+
+    /// `first` and the words right after it, as one variable's name.
+    mutating func name(startingWith first: String) -> String {
+        var words = [first]
+        while case .ident(let word)? = peek(), !Self.operatorWords.contains(word) {
+            words.append(word)
+            i += 1
+        }
+        return words.joined(separator: " ")
     }
 
     mutating func wholeExpression() throws -> Expr {
@@ -112,7 +127,11 @@ private struct Parser {
             i += 1
             return .negate(try unary())
         }
-        return try primary()
+        let base = try primary()
+        guard peek() == .caret else { return base }
+        i += 1
+        // Right of `^` can be negative (`2^-1`) and chains to the right.
+        return .power(base, try unary())
     }
 
     mutating func primary() throws -> Expr {
@@ -123,8 +142,8 @@ private struct Parser {
             let e = try expression()
             guard try next() == .rparen else { throw EngineError.unexpected(tokens[i - 1].text) }
             return e
-        case .ident(let name):
-            return .variable(name)
+        case .ident(let word):
+            return .variable(name(startingWith: word))
         case .nominal(let name):
             return .nominal(name)
         case let other:
@@ -136,9 +155,9 @@ private struct Parser {
     mutating func numberWithUnits(_ value: Rational) throws -> Expr {
         // `3 cubits` or `3 width`: a word right after a number multiplies it,
         // so an unknown word reads as "Unknown: cubits" rather than a syntax error.
-        if case .ident(let word)? = peek(), !["x", "to", "as"].contains(word) {
+        if case .ident(let word)? = peek(), !Self.operatorWords.contains(word) {
             i += 1
-            return .binary(.multiply, .number(value), .variable(word))
+            return .binary(.multiply, .number(value), .variable(name(startingWith: word)))
         }
         guard case .unit(let symbol)? = peek() else { return .number(value) }
         i += 1
@@ -180,6 +199,7 @@ extension Token {
         case .minus: return "-"
         case .times: return "×"
         case .divide: return "/"
+        case .caret: return "^"
         case .lparen: return "("
         case .rparen: return ")"
         case .equals: return "="

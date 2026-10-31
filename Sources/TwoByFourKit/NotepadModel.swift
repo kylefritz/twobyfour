@@ -15,6 +15,12 @@ public enum Display: Equatable, Sendable {
         }
     }
 
+    /// A shorter `label` for a narrow column: `7' 4"` instead of `7' 4" (88")`.
+    public var compactLabel: String? {
+        guard case .result(let r) = self else { return label }
+        return r.compact.isExact ? r.compact.text : "≈ \(r.compact.text)"
+    }
+
     /// The answer without the `≈`, for copying and tests.
     public var primaryText: String? {
         if case .result(let r) = self { return r.primary.text }

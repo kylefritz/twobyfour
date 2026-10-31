@@ -7,7 +7,7 @@ public enum Token: Equatable, Sendable {
     case ident(String)
     /// A board name like `2x4`, written without spaces.
     case nominal(String)
-    case plus, minus, times, divide, lparen, rparen, equals
+    case plus, minus, times, divide, caret, lparen, rparen, equals
 }
 
 /// Splits one notepad line into tokens. Numbers come out exact, including
@@ -66,6 +66,7 @@ private struct Lexer {
             case "-": tokens.append(.minus)
             case "*": tokens.append(.times)
             case "/": tokens.append(.divide)
+            case "^": tokens.append(.caret)
             case "(": tokens.append(.lparen)
             case ")": tokens.append(.rparen)
             case "=": tokens.append(.equals)
@@ -157,6 +158,9 @@ private struct Lexer {
         let text = String(chars[start..<i])
         if let unit = Units.lookup(text) {
             tokens.append(.unit(unit.symbol))
+        } else if let power = ["²": 2, "³": 3][text.last!], text.count > 1 {
+            // `deck²`: a variable squared, read as `deck ^ 2`.
+            tokens += [.ident(String(text.dropLast())), .caret, .number(try! Rational(Int64(power)))]
         } else {
             tokens.append(.ident(text))
         }

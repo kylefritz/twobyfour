@@ -124,13 +124,15 @@ final class NotepadTextView: UITextView {
         layoutColumn()
     }
 
-    /// Places the column right of the text and tells it where each line starts.
+    /// Lays the column over the text and tells it where each line's answer
+    /// can go: the reserved column, plus any room left of it that a short
+    /// line doesn't use, so `3' 11 1/16" (47 1/16")` fits beside `47 3/16" − 1/8"`.
     private func layoutColumn() {
         let layout = layoutManager
         layout.ensureLayout(for: textContainer)
-        let x = bounds.width - Self.inset - resultsWidth
-        column.frame = CGRect(x: x, y: 0, width: resultsWidth,
-                              height: max(contentSize.height, bounds.height))
+        let right = bounds.width - Self.inset
+        let columnStart = right - resultsWidth
+        column.frame = CGRect(x: 0, y: 0, width: bounds.width, height: max(contentSize.height, bounds.height))
 
         let string = text as NSString
         var tops: [Int: CGRect] = [:]
@@ -139,9 +141,17 @@ final class NotepadTextView: UITextView {
             guard lineStart < string.length else { break }
             let lineRange = string.lineRange(for: NSRange(location: lineStart, length: 0))
             let glyph = layout.glyphIndexForCharacter(at: lineRange.location)
-            let fragment = layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
-            tops[row.line] = CGRect(x: 0, y: textContainerInset.top + fragment.minY,
-                                    width: resultsWidth, height: fragment.height)
+            var fragmentGlyphs = NSRange()
+            let fragment = layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: &fragmentGlyphs)
+            // A line that wraps fills its first row, so it only gets the column.
+            let lineGlyphs = layout.glyphRange(forCharacterRange: lineRange, actualCharacterRange: nil)
+            var start = columnStart
+            if NSMaxRange(fragmentGlyphs) >= NSMaxRange(lineGlyphs) {
+                let used = layout.lineFragmentUsedRect(forGlyphAt: glyph, effectiveRange: nil)
+                start = min(columnStart, textContainerInset.left + used.maxX + Self.gap)
+            }
+            tops[row.line] = CGRect(x: start, y: textContainerInset.top + fragment.minY,
+                                    width: right - start, height: fragment.height)
             lineStart = NSMaxRange(lineRange)
         }
         column.lineRects = tops
@@ -236,9 +246,15 @@ final class ResultsColumnView: UIView {
 
     override func draw(_ rect: CGRect) {
         for row in rows {
-            guard let label = row.display.label, let line = lineRects[row.line] else { continue }
-            attributed(row, label).draw(in: line)
+            guard let text = shown(row), let line = lineRects[row.line] else { continue }
+            attributed(row, text).draw(in: line)
         }
+    }
+
+    /// The answer, or its shorter form when the whole one won't fit.
+    private func shown(_ row: ResultRow) -> String? {
+        guard let label = row.display.label, let line = lineRects[row.line] else { return row.display.label }
+        return attributed(row, label).size().width <= line.width ? label : row.display.compactLabel
     }
 
     private func attributed(_ row: ResultRow, _ text: String) -> NSAttributedString {
@@ -258,7 +274,7 @@ final class ResultsColumnView: UIView {
     /// The drawn answer's own area, right-aligned in its line, made at least
     /// a fingertip wide.
     private func hitRect(_ row: ResultRow) -> CGRect? {
-        guard case .result = row.display, let text = row.display.label, let line = lineRects[row.line] else { return nil }
+        guard case .result = row.display, let text = shown(row), let line = lineRects[row.line] else { return nil }
         let width = min(line.width, max(44, attributed(row, text).size().width))
         return CGRect(x: line.maxX - width, y: line.minY, width: width, height: max(line.height, 32))
     }
@@ -271,6 +287,7 @@ final class ResultsColumnView: UIView {
     /// One element per answer, so VoiceOver (and UI tests) can read them.
     func updateAccessibility() {
         accessibilityElements = rows.compactMap { row -> UIAccessibilityElement? in
+            // The whole answer, even when a shorter one is drawn.
             guard let label = row.display.label, let line = lineRects[row.line] else { return nil }
             let element = UIAccessibilityElement(accessibilityContainer: self)
             element.accessibilityLabel = label
